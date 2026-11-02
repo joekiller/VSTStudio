@@ -9,7 +9,7 @@
 #   companion/**      node --test on the phone companion's tests (needs Node 20+)
 #   src/** tests/** bin/** cmake/** sampleData/** CMakeLists.txt
 #                     incremental build of $VST_BUILD_DIR (default: build) and ctest, configuring it first if it
-#                     doesn't exist (needs OpenCV, see README "Building from source")
+#                     doesn't exist (needs OpenCV, see docs/building.md)
 # The two slow wall-clock tests, live_stream_reconnect (~45 s) and companion_api_smoke (VST Studio under Xvfb), are
 # left to CI unless VST_HOOK_FULL=1. The hook tests the working tree, so unstaged edits are included.
 set -euo pipefail

@@ -2308,7 +2308,7 @@ void App::pageSource() {
 			}
 		}
 		ImGui::Dummy(ImVec2(0, px(4)));
-		// Plain-language checks against what the tracker needs (README "Set-up Checklist").
+		// Plain-language checks against what the tracker needs (docs/command-line.md "Setting up a view by hand").
 		auto check = [&](bool good, const char* okText, const char* badText) {
 			ImGui::PushStyleColor(ImGuiCol_Text, v4(good ? c::ok : c::warn));
 			ImGui::TextUnformatted(good ? ICON_CHECK_CIRCLE : ICON_WARN);

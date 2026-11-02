@@ -106,7 +106,7 @@ jobs:
           # nothing else, so installing is one drag and opening it starts the GUI. Everything `cmake --install`
           # lays out goes inside the bundle:
           #   Contents/MacOS/      VSTStudio (CFBundleExecutable, what Finder launches) plus the command-line tools
-          #                        VideoSpeedTracker and ProcessHiLites, for power users (README "macOS")
+          #                        VideoSpeedTracker and ProcessHiLites, for power users (docs/install.md "macOS command-line tools")
           #   Contents/Frameworks/ the FFmpeg dylibs all three load through @executable_path/../Frameworks
           #   Contents/Resources/  VST.cfg / ProcessHiLites.cfg templates, companion, sample, README.md,
           #                        GETTING-STARTED.md, LICENSE.txt, licenses/ (OpenCV, FFmpeg, GUI libs) and the icon

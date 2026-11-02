@@ -517,7 +517,7 @@ Date, Time, Frame, Direction, StartFrame, EndFrame, # Frames, StartPix, EndPix, 
 `Flag` is `*****` for an implausible speed, else empty. `Timestamp` is when the vehicle passed, ISO 8601 with the
 UTC offset (`2026-10-30T14:03:22-04:00`), or empty when the source gives no way to tell. The last five are the speed
 trend (the vehicle's `trend`), all empty when it's `null`. The columns are described
-in the [README](../README.md#the-stats-csv).
+in [Output files](output-files.md#the-stats-csv).
 
 ### `GET /api/report.html?from=YYYY-MM-DD&to=YYYY-MM-DD`
 

@@ -1,204 +1,102 @@
 # Getting started with VideoSpeedTracker
 
-This guide takes a freshly downloaded release from "does it run?" to measuring speeds on your own street. Release
-packages install it as `GETTING-STARTED.md` next to `README.md`.
+This guide takes you from a fresh download to measuring the traffic on your street. You don't need to know anything
+about cameras or video first, and you don't need to buy anything to try it: VST Studio comes with a sample video, and
+the camera you already own (even a phone) is a fine place to start. Release packages install this guide as
+`GETTING-STARTED.md`.
 
-## Start here: VST Studio
+The full documentation is at [github.com/joekiller/VideoSpeedTracker](https://github.com/joekiller/VideoSpeedTracker#documentation).
 
-Most people never need the command line. **VST Studio** is the desktop app: it walks you through choosing a camera,
-drawing the zones, calibrating with one drive past (and checking it with a second), and leaving it running. It works out where the speed zone should
-go before you mount anything.
+## 1. Install it
 
-1. **Install it.**
-   - **Windows:** run `VideoSpeedTracker-<ver>-windows-x64-setup.exe`. The first page asks whether to install just
-     for you (no admin prompt) or for everyone on the computer. Installing for everyone also lets phones reach the
-     companion app through Windows Firewall on your home network.
-   - **Linux:** `sudo apt install ./videospeedtracker_*.deb`.
-   - **macOS** (13 or later): open the `.dmg` and drag `VSTStudio.app` onto Applications. That's the whole
-     install; the command-line tools are inside the app (README, "macOS command-line tools").
-2. **Open VST Studio** from the Start menu, the applications menu on Linux, or `VSTStudio.app` on macOS. `VSTStudio` starts it from a
-   terminal.
-3. **Follow the five setup steps.** What you need, Pick your spot, Connect the camera, Mark your street and
-   Calibrate, numbered the same in the side rail and across the top of each step. The header's main button always
-   names the next step, then becomes Start tracking. No camera yet? Step 3 offers the bundled sample video, so you
-   can watch cars get measured first. Not calibrated yet? Tracking still runs; speeds firm up once you calibrate.
-4. **Leave it running.** VST Studio reconnects to a camera that drops out and keeps video under a disk budget.
-   It warns if the camera gets knocked out of line, and logs each day to `Stats/health.csv`.
-5. **Pair your phone** on the Companion page to aim the camera and help calibrate from the curb. Phone busy being
-   the camera? Pair a second phone or a tablet, or skip it: every step works on the computer, and Calibrate can take
-   timed pictures while you stand the pole outside.
-6. **Make a street report** from Results when you have a week or two of data.
+Download the file for your computer from the
+[latest release](https://github.com/joekiller/VideoSpeedTracker/releases/latest):
 
-Everything in VST Studio is described in [VST Studio](vst-studio.md). The rest of this guide covers the same
-ground with the command-line tracker, `VideoSpeedTracker`, for scripts, headless boxes and batch runs.
+- **Windows:** `VideoSpeedTracker-<version>-windows-x64-setup.exe`. Run it and choose whether to install just for you
+  or for everyone (for everyone also lets your phone reach it through Windows Firewall).
+- **Mac** (Apple silicon, macOS 13 or later): `VideoSpeedTracker-<version>-macos-arm64.dmg`. Open it and drag
+  **VSTStudio.app** onto Applications.
+- **Linux or Raspberry Pi:** the `.deb` for your system (`arm64` for a Pi), then
+  `sudo apt install ./videospeedtracker_*.deb`.
 
-## 1. See it work on the sample video
+[Installing](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/install.md) has every option and how to
+check that a download is genuine.
 
-Every release package bundles a 2016 clip from Locust Avenue in Charlottesville (`sample/manual_20160130172251.avi`),
-and the `VST.cfg` it ships with is set up for that clip. Run either of these:
+## 2. Open VST Studio and watch it work
 
-```
-VideoSpeedTracker --demo              # tracks the sample in a window; Esc quits
-VideoSpeedTracker --demo --headless   # no window, just the results
-```
+Open **VST Studio** from the Start menu, Applications, or your Linux applications menu. It opens on step 1 of setup.
+To see it work before you do anything else:
 
-The demo writes a csv of every vehicle it tracked to the `Stats` folder in your per-user data folder
-(see [Where things go](#2-where-things-go)). It prints the file's path when it starts.
+1. Click **Connect the camera** (step 3) in the side rail and press **Use the sample**. That opens eight minutes of
+   Locust Avenue in Charlottesville, recorded in 2016 by VST's original author.
+2. Click **Live tracking** and press **Start tracking**.
 
-If you run `VideoSpeedTracker` with no options, you get the original interactive mode. While you have no videos of
-your own yet, it says where to put them and then offers to run the sample. Press Enter to accept the default answer
-to each question.
+Each car gets a box, a bar on its front bumper, and a speed as it crosses the second white line. When you're ready,
+go back to step 1, **What you need**, and work through the steps with your own view.
 
-On Windows you can also double-click `VideoSpeedTracker.exe`. The window stays open after the program exits, so you
-can read why it stopped. After a Windows install, the command-line tools are in the install folder:
-`%LOCALAPPDATA%\Programs\VideoSpeedTracker` when installed for you, or `C:\Program Files\VideoSpeedTracker` when
-installed for everyone. On macOS they are inside the app, in `/Applications/VSTStudio.app/Contents/MacOS`; link
-them onto your `PATH` with
-`sudo ln -sf /Applications/VSTStudio.app/Contents/MacOS/{VideoSpeedTracker,ProcessHiLites} /usr/local/bin/`.
+## 3. Follow the five setup steps
 
-## 2. Where things go
+The side rail lists five numbered steps, and the button at the top always names the next one. You can go back to any
+step at any time; nothing is lost.
 
-| | Config (`VST.cfg`) | Data (`IPCam`, `Stats`, `Trace`, `HiLites`) |
-|---|---|---|
-| Windows | `%APPDATA%\VideoSpeedTracker` | `%LOCALAPPDATA%\VideoSpeedTracker` |
-| macOS | `~/Library/Application Support/VideoSpeedTracker` | `~/Library/Application Support/VideoSpeedTracker/Data` |
-| Linux | `~/.config/videospeedtracker` | `~/.local/share/videospeedtracker` |
+1. **What you need.** A window on the street, a camera that can be held still, a few minutes with the picture, and one
+   drive past (or a tape measure). It also gathers the tips that make the biggest difference: lens against the glass,
+   insect screen out, a dark cloth or hood against reflections.
+2. **Pick your spot.** A site planner, for before you mount anything. Pick the preset closest to your view, or type
+   how far the lane is and how much of it you can see, and it tells you how fast a car it can time and how accurate it
+   will be. **Find it on the map** fills it in from OpenStreetMap, including whether your street is one-way. Nothing
+   changes until you press **Save changes**. A narrow street from a front window is fine: about 14 ft of clear street
+   is enough with short-view timing, which the planner offers when it sees one.
+3. **Connect the camera.** A USB webcam, a phone in USB webcam mode, a network camera's address, a Raspberry Pi
+   camera, or a recording. VST picks the camera's best mode for timing and says, in plain words, what it can and
+   can't do. No camera yet? Keep using the sample, or a photo of your view to plan with.
+4. **Mark your street.** Drag the box around the street, the two white speed lines, and the lane line onto the
+   cars' hubcaps. Set the compass direction and, for a one-way street, which way is legal: VST then flags every
+   wrong-way driver. A crooked camera or a street at a slant each have a one-click fix here.
+5. **Calibrate.** VST needs to know how long the zone between the white lines is. The simplest way is to drive past
+   at a steady speed and tell it how fast you went, then **Check it with a second drive**. No car or no helper?
+   **Cones or pole** works with a tape measure and one person; **Known car** works from any parked car of a model
+   you know; a phone running VST Ride-along can record your speed so you don't need cruise control. Every way you
+   calibrate adds to the others rather than replacing them.
 
-The config is chosen in this order:
+Not calibrated yet? Tracking runs anyway, and speeds firm up as you calibrate. [VST Studio](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/vst-studio.md)
+describes every step in detail.
 
-1. `VST.cfg` in the folder you run from. On Windows that includes the unzipped program folder, so if you start
-   the program there, edit the `VST.cfg` next to the exe.
-2. Your per-user copy. The first run without (1) creates it from the shipped template.
-3. Whatever you pass with `--config PATH`, which overrides both.
+## 4. Leave it running
 
-Every run prints `Using config <path>` first, so you can always see which file it read. The shipped `dataPathPrefix`
-is blank, which means "the per-user data folder". Set it to a path to keep videos and results somewhere else, such
-as a big drive.
+Press **Start tracking** and leave it. VST Studio reconnects a camera that drops out, keeps video within a disk budget
+(20 GB by default), warns if the camera gets knocked out of line, and logs each day so you can tell a quiet street
+from a camera that was offline. Reopen VST Studio and it picks up where you left off.
 
-## 3. Check your camera position
+## 5. Pair your phone (optional)
 
-Before calibrating, make sure the view can work. The full checklist is in the [README](../README.md#set-up-checklist).
-In short:
+Turn on **Companion app** in VST Studio's side rail and scan the QR code with your phone, on the same Wi-Fi. From the
+phone you can watch the camera, see recent speeders and wrong-way drivers with clips, and do steps 2 to 5 from the
+street. Phone busy being the camera? Pair a second phone or a tablet, or skip it: every step also works on the
+computer.
 
-- The street should cross the frame left to right, about halfway up.
-- The speed zone, the stretch between the two white lines, should take a car at least one second to cross at
-  the speed limit. At 25 mph that is about 37 ft. A narrow street where you can only see 14 to 25 ft works too,
-  with short-view timing (see [the example below](#example-a-narrow-view-of-a-one-way-street)).
-- Use 720p or better at 25 to 30 fps. Any size and frame rate is accepted: frames are scaled to 1280x720, and
-  every pixel value in `VST.cfg` uses that 1280x720 grid.
+## 6. Look at what you've found
 
-## 4. Set the geometry for your view
+**Results** shows every vehicle with filters for speeding, way over and wrong way, a speed chart with the limit
+marked, and the 85th-percentile speed (the number traffic engineers use). After a week or two:
 
-Record a minute of ordinary traffic and open one frame in an image viewer that shows pixel coordinates (Paint, GIMP,
-Preview's inspector, `ffmpeg -i clip.mp4 -frames:v 1 -s 1280x720 frame.png`). Measure in a 1280x720 copy of the
-frame. Then set these keys in your `VST.cfg`:
+- **Make report** writes a street report that prints cleanly and is written for neighbors, city staff and council.
+- **Archive** puts a period away under a name ("Before the new signs") so you can compare later.
+- **Publish** freezes a dataset with checksums so anyone can check it, and it can be re-checked against later
+  calibrations.
 
-| Key | What to measure |
-|---|---|
-| `AnalysisBoxLeft`, `AnalysisBoxTop` | Top-left corner of a box that holds both lanes and the cars' full height, and as little else as possible: no sky, no swaying trees, no sidewalk. |
-| `AnalysisBoxWidth`, `AnalysisBoxHeight` | Size of that box. Left + Width must be 1280 or less, and Top + Height must be 720 or less. |
-| `speedLineLeft`, `speedLineRight` | x of the two speed-zone lines, **relative to `AnalysisBoxLeft`**. Keep them where cars are fully in view and in the flattest, middle part of the frame. |
-| `R2LStreetY`, `L2RStreetY` | y of the hubcap line for each lane, **relative to `AnalysisBoxTop`**. R2L is usually the far lane, so it is higher, which means a smaller y. |
-| `obstruction` | `[left,right]` x range, relative to `AnalysisBoxLeft`, of a pole or tree trunk in front of the street. Use `[0,0]` for none. |
-| `nextHeight` | Rough height in pixels of a typical car in your view. |
-| `L2RDirection`, `R2LDirection` | Compass direction for each way of travel. These are only labels in the output. |
+[Working with your city](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/working-with-your-city.md) is
+about what to do next: who to talk to, what to bring, and what to ask for.
 
-Run a clip interactively with `VideoSpeedTracker` (put it in `IPCam/<a folder>/`), or pass it with
-`VideoSpeedTracker --input clip.mp4`. Interactive mode draws the box, speed lines, obstruction and hubcap lines over
-the first frame and asks whether they look right. Answer `n`, adjust, and run again until they do. The colors are
-explained in the [manual's appendix](Video%20Speed%20Tracker%20Overview%20and%20User%20Manual.md#appendix).
+## Prefer the command line?
 
-## 5. Calibrate speed
+`VideoSpeedTracker --demo` runs the sample without VST Studio, and `VideoSpeedTracker --help` lists every option. It
+reads the same `VST.cfg` VST Studio writes, so you can set up in Studio and run headless on a schedule.
+[Command line](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/command-line.md) covers it, including
+camera options and setting up by hand.
 
-VST counts how many frames a vehicle takes to cross the speed zone and compares that with a known pass:
+## If something goes wrong
 
-```
-speed = CalibrationSpeed × CalibrationFrames × (video fps / CalibrationFPS) / frames taken
-```
-
-1. Drive (or have someone drive) through the zone at a steady, known speed, with cruise control or a GPS speedometer
-   app, once in each direction you need. On a one-way street you only need the legal direction, but a pass the
-   other way (slowly, on a closed or empty street) lets you calibrate wrong-way speeds too.
-2. Run VST on that clip, for example `VideoSpeedTracker --headless --input calib.mp4 --stats calib.csv`. The
-   `# Frames` column of your car's row is the number of frames it took to cross the zone. If VST didn't track the
-   pass, step through the clip in a video player and count the frames between the front bumper crossing the first
-   white line and crossing the second.
-3. Put that count in `CalibrationFramesL2R` or `CalibrationFramesR2L`, the speed you drove in `CalibrationSpeed`,
-   and the clip's frame rate in `CalibrationFPS`.
-4. Do a second pass at a different speed and check that VST reports it within a mile or two per hour. Keep a note
-   of both passes (speed driven, frames, what VST reported): it's how you show someone the calibration is right.
-
-[VST Studio](vst-studio.md#5-calibrate) does all of this in step 5, Calibrate: pick your pass and the speed you drove,
-then **Check it with a second drive**, which shows the error and calls it **Verified** within ±2 mph. Every
-calibration and check it makes is appended to `calibration-history.csv` in the config folder, as that record.
-
-No car handy yet? **Cones or pole** on the same page calibrates from a measured distance instead: chalk two spots a
-taped distance apart along the lane, stand a cone on each or hold a pole upright on one and then the other, click
-(or, from the phone companion on the street, tap) each, and enter the distance. It's a good start and only as
-accurate as where the spots are, so check it with a drive past when you can.
-
-If a direction can't be calibrated, a rough value is the other direction's frame count scaled by how much shorter
-or longer the zone looks in that lane.
-
-## 6. Analyze your videos
-
-- Interactive: put each day's clips in `IPCam/<yyyymmdd>/` and run `VideoSpeedTracker`. Answer `*` to process a whole
-  folder.
-- Batch or scripted: run `VideoSpeedTracker --headless --input clip.mp4 --stats out.csv --speed-limit 25`.
-  `--highlights hl.mp4` saves a video of the offenders. See `VideoSpeedTracker --help` for every option.
-- Live: `--input 0` tracks a USB camera (its shutter fixed at 1/1000 s where the camera allows it),
-  `--input rtsp://...` a network camera, and on a Raspberry Pi `--input picam`
-  its ribbon-cable camera at 60 fps with a 1/1000 s shutter (`--list-pi-cameras` shows what's attached; settings are in
-  the README's [Raspberry Pi camera](../README.md#raspberry-pi-camera) section). Live runs keep going until stopped.
-
-Each csv row is one vehicle, with its direction, frame range, pixel distance, size, estimated speed and the date and
-time it passed (the columns are described in the [README](../README.md#the-stats-csv)).
-
-## Example: a narrow view of a one-way street
-
-This example is for a second-floor window on a one-way street that runs northeast, where legal traffic moves
-right to left across the frame. The view is short, so the speed zone is narrow and the camera should record at a
-full 30 fps. These numbers are placeholders to show the shape of the config. Measure your own.
-
-```
-# Second-floor window, one-way street, legal direction NE = right to left in the frame.
-# L2R traffic is therefore going the wrong way; its rows in the stats are the wrong-way callouts.
-dataPathPrefix =
-L2RDirection = "SW"          # wrong way
-R2LDirection = "NE"          # legal direction
-obstruction = [0,0]          # nothing in front of the street
-AnalysisBoxLeft = 0
-AnalysisBoxTop = 300         # below the porch roof and across-the-street yards; measure yours
-AnalysisBoxWidth = 1280
-AnalysisBoxHeight = 220
-speedLineLeft = 400          # zone must still take >= 1 s at the limit: about 37 ft at 25 mph
-speedLineRight = 880
-R2LStreetY = 150             # one lane: put both hubcap lines on it
-L2RStreetY = 150
-nextHeight = 110             # cars look bigger from close up
-CalibrationFramesL2R = 30    # placeholder until a wrong-way calibration pass is done
-CalibrationFramesR2L = 30    # count from your own calibration drive
-CalibrationSpeed = 25
-CalibrationFPS = 30
-```
-
-On a one-lane street both directions use the same lane, so the two hubcap lines are close together or the same.
-VST was built for two-lane, two-way streets, so expect to tune `maxL2RDistOnEntry`, `maxR2LDistOnEntry` and `SLOP`
-for a narrow view.
-
-If the view is shorter still, 14 to 25 ft of street with a car filling most or all of the frame, a zone that takes a full
-second isn't possible. Set `subFrameTiming = 1` (short-view timing): VST then times each car's front bumper to a
-fraction of a frame instead of counting whole frames. It also needs a much larger `maxL2RDistOnEntry`,
-`maxR2LDistOnEntry` and `entryLookBack` (several hundred pixels). The [manual's appendix](Video%20Speed%20Tracker%20Overview%20and%20User%20Manual.md#appendix)
-explains each one, and VST Studio's site planner sets all four for you when it sees a short view (**Use short-view
-timing**). Record at 60 fps with a 1/1000 s shutter if you can: at 30 fps a 15 ft view times cars up to about
-45 mph and a 20 ft view up to about 60; at 60 fps both time cars over 70. Below about 14 ft, cars start to be missed.
-
-## When something goes wrong
-
-See [Troubleshooting](../README.md#troubleshooting) in the README. The most common first-run messages:
-
-- **No video folders found in …\IPCam**: you have no videos there yet. Accept the offer to run the sample, put a
-  folder of clips there, or use `--input`.
-- **unknown setting / can't read a value**: there is a typo in `VST.cfg`. The message gives the file and line.
-- **Can't open video**: OpenCV can't decode the file. Convert it with `ffmpeg -i in.ext -c:v libx264 out.mp4`.
+[Troubleshooting](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/troubleshooting.md) covers the common
+cases. If VST says something you don't understand, it is a bug in the wording as much as anything:
+[tell us](https://github.com/joekiller/VideoSpeedTracker/issues/new).

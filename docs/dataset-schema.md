@@ -96,7 +96,7 @@ Comma-separated, a header row, UTF-8. A cell holding a comma, a quote or a newli
 | `wrongWay` | 1 = against a one-way street |
 | `zoneSeconds` | Seconds the car took between the two speed lines, 4 decimals. Empty for rows recorded before VST measured it |
 | `speedMph` | The published speed, whole mph |
-| `trend` | `decelerating`, `steady`, `accelerating`, `rapid`, or empty (as the stats csv's Trend column, see the README) |
+| `trend` | `decelerating`, `steady`, `accelerating`, `rapid`, or empty (as the stats csv's Trend column, see [Output files](output-files.md#the-stats-csv)) |
 | `entryMph`, `exitMph` | Speed at the first and second line |
 | `accelMphPerSec` | Acceleration across the zone |
 | `mphIn20ft` | Projected speed 20 ft past the zone |
