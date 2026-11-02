@@ -1184,6 +1184,7 @@ void App::pageGuide() {
 		ImGui::PushFont(fonts.title);
 		ImGui::TextUnformatted("Measure the traffic on your street");
 		ImGui::PopFont();
+		sampleTryCard(avail);   // Sample.cpp: see it work first, before any setup
 		lead("VST times every car that passes between two lines on your video and works out its speed. Setting it up takes "
 			"about half an hour, in five steps. Here is what each one needs. Nothing leaves your computer. Whatever camera you have is a fine "
 			"place to start, and every step has a way through if something isn't to hand yet.");

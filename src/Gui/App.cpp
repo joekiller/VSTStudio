@@ -183,13 +183,14 @@ bool App::saveConfig() {
 // the check doesn't vanish because a camera is a moment late.
 bool App::zonesDone() {
 	// By device, not by name: "0" and "0?w=1920&h=1080" are the same camera, so a mode change keeps step 4 done.
+	// The sample is never "your street marked" (Sample.cpp), even in prefs from before it stopped setting zonesFor.
+	if (isSample(resume::setupSource(source, prefs.lastSource))) return false;
 	return resume::zonesStepDone(frameio::deviceKey(resume::setupSource(source, prefs.lastSource)), frameio::deviceKey(prefs.zonesFor), cfg.problems().empty());
 }
 
 bool App::calibrationDone() {
 	// The bundled sample's VST.cfg comes calibrated for that video, so the sample never nags.
-	if (sampleCache_.empty()) sampleCache_ = findSample();
-	if (!source.empty() && source == sampleCache_) return true;
+	if (isSample(source)) return true;
 	return !cfg.path().empty() && prefs.calibratedFor == cfg.path() && cfg.problems().empty() && !calibrationStale();
 }
 
@@ -306,15 +307,19 @@ void App::startTracking() {
 	std::vector<std::string> inputs = batch.empty() ? std::vector<std::string>{ source } : batch;
 	if (inputs.empty() || inputs[0].empty()) { toast("Connect a camera or open a video first (step 3)", c::warn, ICON_VIDEO); goFlow(2); return; }
 	if (classifySource(inputs[0]) == SourceInfo::Image) { toast("A photo is fine for planning zones, but tracking needs video", c::warn, ICON_IMAGE); return; }
-	auto problems = cfg.problems();
+	// The sample alone (Sample.cpp) runs with its own settings once you've marked a street of your own, and always
+	// keeps its results in <data>/Sample, apart from your street's saved runs and report.
+	bool sampleRun = inputs.size() == 1 && isSample(inputs[0]);
+	sampleRunOwn_ = sampleRun && sampleOwnSettings();
+	auto problems = sampleRunOwn_ ? std::vector<std::string>{} : cfg.problems();
 	if (!problems.empty()) { toast("Fix the zone settings first: " + problems[0], c::bad, ICON_WARN); page = Page::Zones; return; }
 	// Run with the settings on screen (saved or not) via a scratch copy, so experiments don't touch VST.cfg.
-	std::string runCfg = cfg.dirty() ? cfg.writeRunCopy(userpaths::configDir().string()) : cfg.path();
+	std::string runCfg = sampleRunOwn_ ? sampleCfg_.path() : cfg.dirty() ? cfg.writeRunCopy(userpaths::configDir().string()) : cfg.path();
 	if (runCfg.empty()) { toast("Can't write the run settings to " + userpaths::configDir().string(), c::bad, ICON_WARN); return; }
 	player.closeAndWait(2);   // a camera can only be opened by one reader at a time: let the preview's let go
 	Tracker::Options o;
 	o.configPath = runCfg;
-	o.dataDir = dataDir();
+	o.dataDir = sampleRun ? (fs::path(dataDir()) / "Sample").string() : dataDir();
 	o.speedLimit = prefs.speedLimit;
 	o.egregious = std::max(prefs.egregious, prefs.speedLimit);
 	o.realtime = prefs.realtime;
@@ -323,12 +328,12 @@ void App::startTracking() {
 	o.hlMax = prefs.hlMax;
 	o.hlArea = prefs.hlArea;
 	o.trace = prefs.trace;
-	o.largeArea = cfg.g.largeVehicleArea;
+	o.largeArea = liveG().largeVehicleArea;
 	std::vector<Job> jobs;
 	for (auto& in : inputs) { Job j; j.input = in; jobs.push_back(j); }
 	live_ = Tracker::Live();
 	liveTexSerial_ = fedSerial_ = -1;
-	runLevel_ = cfg.g.levelDegrees;   // the run copy carries this angle, so the frames it hands back are already turned by it
+	runLevel_ = liveG().levelDegrees;   // the run copy carries this angle, so the frames it hands back are already turned by it
 	tracker.start(jobs, o);
 	showSessionResults();   // Results follows the run (the saved runs are a click away in its menu)
 	page = Page::Track;
@@ -1380,10 +1385,11 @@ void App::frame(float w, float h) {
 			pendingRecent_.clear();
 		}
 		if (!resumedSource_.empty() && player.isOpen() && !player.opening()) resumedSource_.clear();
+		sampleStartPump();   // "Watch the sample": start its run once the video is open
 		if (!pendingRecent_.empty() && pendingRecent_ == source && player.isOpen() && !player.opening()) rememberSource(source);
 		else if (!pendingRecent_.empty() && pendingRecent_ != source) pendingRecent_.clear();   // cancelled or replaced
 	}
-	if (page == Page::Zones && !source.empty() && cfg.problems().empty()) {
+	if (page == Page::Zones && !source.empty() && !isSample(source) && cfg.problems().empty()) {
 		prefs.zonesFor = source;
 		if (player.isOpen() && player.info().width > 0) prefs.zonesFrame = std::to_string(player.info().width) + "x" + std::to_string(player.info().height);
 	}
@@ -1458,9 +1464,11 @@ bool App::flowDone(int step) {
 	case 1: return prefs.planConfirmed;   // saved at least once (a rough guess counts)
 	// Connected (not still connecting), queued, or connected before and not disconnected since: the step was done,
 	// and the header's chip says when the camera isn't answering right now.
-	case 2: return resume::sourceStepDone(!source.empty() && !player.opening(), !batch.empty(), prefs.lastSource);
+	// The sample checks none of 3-5: it's ready to run, but it isn't your camera, your street or your calibration.
+	case 2: return resume::sourceStepDone(!source.empty() && !player.opening(), !batch.empty(), prefs.lastSource)
+		&& !isSample(resume::setupSource(source, prefs.lastSource));
 	case 3: return zonesDone();
-	case 4: return calibrationDone() && !(sampleCache_.size() && source == sampleCache_);   // the sample's own calibration isn't yours
+	case 4: return calibrationDone() && !isSample(source);
 	default: return false;
 	}
 }
@@ -2191,7 +2199,8 @@ void App::pageSource() {
 
 	ImGui::Dummy(ImVec2(0, px(4)));
 	std::string sample = findSample();
-	if (!sample.empty()) {
+	if (!sample.empty() && isSample(source) && batch.empty()) sampleNote(leftW, false);
+	else if (!sample.empty()) {
 		beginCard("sample", nullptr, nullptr, ImVec2(leftW, 0));
 		ImGui::AlignTextToFramePadding();
 		ImGui::PushStyleColor(ImGuiCol_Text, v4(c::warn));
@@ -2201,7 +2210,7 @@ void App::pageSource() {
 		ImGui::TextUnformatted("No camera yet? Try the 2016 Locust Avenue sample, the clip VST was built on.");
 		// Flush with the card's right padding: the button's label is semibold, plus its frame padding.
 		ImGui::SameLine(leftW - px(18) - fonts.strong->CalcTextSizeA(fsz(fonts.strong), FLT_MAX, 0, ICON_PLAY " Use the sample").x - px(28));
-		if (ghostButton(ICON_PLAY " Use the sample")) { batch.clear(); openSource(sample); }
+		if (ghostButton(ICON_PLAY " Use the sample")) { batch.clear(); openSource(sample); }   // opens it here; Sample.cpp offers the run
 		endCard();
 	}
 
@@ -2429,6 +2438,7 @@ void App::pageSource() {
 
 void App::pageZones() {
 	flowStepper();
+	sampleStepNote(false);
 	float avail = ImGui::GetContentRegionAvail().x, availH = ImGui::GetContentRegionAvail().y;
 	float inspW = px(372);
 	float canvasW = avail - inspW - px(20);
@@ -3090,6 +3100,7 @@ void App::pageCalibrate() {
 		ImGui::TextWrapped(ICON_WARN "  The speed lines moved since this calibration (step 4, or short-view timing in step 2), so it no longer fits them. Calibrate once more, any way below.");
 		ImGui::PopStyleColor();
 	}
+	sampleStepNote(true);
 	float avail = ImGui::GetContentRegionAvail().x, availH = ImGui::GetContentRegionAvail().y;
 	float sideW = px(400);
 	float canvasW = avail - sideW - px(20);
@@ -4065,7 +4076,8 @@ void App::pageTrack() {
 	ImVec2 area = ImGui::GetContentRegionAvail();
 	area.y -= px(30);
 	bool noSource = source.empty() && batch.empty();
-	View v = drawFrame(tex, area, noSource ? "Connect a camera or open a video in step 3" : "Press Start tracking to begin");
+	View v = drawFrame(tex, area, noSource ? "Nothing connected yet. Watch the 2016 sample measure, or connect your camera in step 3"
+		: "Press Start tracking to begin");
 	ImDrawList* dl = ImGui::GetWindowDrawList();
 	// Motion the tracker sees, tinted over the analysis box, under the zone and box overlays.
 	if (prefs.showMotion && run && motionTex_.valid()) {
@@ -4075,8 +4087,8 @@ void App::pageTrack() {
 	OverlayStyle st;
 	st.opacity = run ? .3f : .5f;   // while tracking, the zones step back so the vehicles and their speeds read first
 	st.dimOutside = true;
-	if (tex) zoneOverlay(v, cfg.g, st);
-	if (haveLive) trackOverlay(v, cfg.g, live_.analysisBox, live_.boxes, prefs.speedLimit, prefs.egregious);
+	if (tex) zoneOverlay(v, liveG(), st);
+	if (haveLive) trackOverlay(v, liveG(), live_.analysisBox, live_.boxes, prefs.speedLimit, prefs.egregious);
 
 	// HUD: source badge, frame counter and how fast processing is going relative to real time.
 	{
@@ -4103,12 +4115,19 @@ void App::pageTrack() {
 		}
 	}
 	// Big call to action when idle.
+	// With nothing connected there are two ways on, side by side: the sample, measuring in one click, or step 3.
 	if (!run) {
 		ImVec2 mid = v.origin + v.size * .5f;
 		ImVec2 bsz(px(220), px(52));
-		ImGui::SetCursorScreenPos(mid - bsz * .5f + ImVec2(0, px(40)));
-		if (noSource ? primaryButton(ICON_VIDEO "  Choose a source", bsz) : primaryButton(ICON_PLAY "  Start tracking", bsz)) {
-			if (noSource) page = Page::Source;
+		bool offerSample = noSource && !findSample().empty();
+		ImGui::SetCursorScreenPos(mid - ImVec2(offerSample ? bsz.x + px(8) : bsz.x * .5f, bsz.y * .5f) + ImVec2(0, px(40)));
+		if (offerSample) {
+			if (primaryButton(ICON_PLAY "  Watch the sample", bsz)) trySample();
+			ImGui::SameLine(0, px(16));
+			if (ghostButton(ICON_CAMERA "  Connect a camera", bsz)) goFlow(2);
+		}
+		else if (noSource ? primaryButton(ICON_VIDEO "  Choose a source", bsz) : primaryButton(ICON_PLAY "  Start tracking", bsz)) {
+			if (noSource) goFlow(2);
 			else startTracking();
 		}
 	}
@@ -4166,6 +4185,10 @@ void App::pageTrack() {
 	// Right side: counts, run options, live feed.
 	ImGui::SameLine(0, px(20));
 	ImGui::BeginChild("tside", ImVec2(sideW, availH), 0, 0);
+	if (isSample(source) && batch.empty() && !screenshotMode) {
+		sampleNote(ImGui::GetContentRegionAvail().x, true);
+		ImGui::Dummy(ImVec2(0, px(4)));
+	}
 	Counts cn = tracker.counts();
 	// From the room left by the scrollbar, which appears once the cards below outgrow the window.
 	float tw = (ImGui::GetContentRegionAvail().x - px(12)) * .5f, th = px(104);
@@ -4183,14 +4206,14 @@ void App::pageTrack() {
 	snprintf(sub, sizeof sub, "%d+ mph", prefs.egregious);
 	statTile(ICON_BOLT, "Way over", std::to_string(cn.egregious), sub, c::bad, ImVec2(tw, th));
 	ImGui::SameLine(0, px(12));
-	if (cfg.g.LegalDirection != "Both") statTile(ICON_WARN, "Wrong way", std::to_string(cn.wrongWay), "on a one-way street", c::wrong, ImVec2(tw, th));
+	if (liveG().LegalDirection != "Both") statTile(ICON_WARN, "Wrong way", std::to_string(cn.wrongWay), "on a one-way street", c::wrong, ImVec2(tw, th));
 	else statTile(ICON_FLAG, "Top speed", cn.topSpeed ? std::to_string(cn.topSpeed) + " mph" : "—", "this session", c::accent2, ImVec2(tw, th));
 	// Where the tries went, once some didn't get a speed: the first thing to look at when the counts seem low.
 	if (cn.tries > cn.vehicles) {
 		ImGui::Dummy(ImVec2(0, px(2)));
 		ImGui::PushTextWrapPos(0);
 		std::string why = std::to_string(cn.tries) + " tried: " + std::to_string(cn.vehicles) + " timed";
-		if (cn.slow) why += ", " + std::to_string(cn.slow) + " under " + std::to_string(cfg.g.minLoggedSpeed) + " mph (walkers, bikes; not listed)";
+		if (cn.slow) why += ", " + std::to_string(cn.slow) + " under " + std::to_string(liveG().minLoggedSpeed) + " mph (walkers, bikes; not listed)";
 		if (cn.untimed) why += ", " + std::to_string(cn.untimed) + " lost in the zone before a speed";
 		dimText("%s", (ICON_INFO "  " + why + ".").c_str());
 		if (cn.untimed * 3 > cn.tries && cn.tries >= 5)
@@ -4381,7 +4404,9 @@ void App::pageResults() {
 	archiveDialog();
 	ImGui::SameLine();
 	// While reviewing, Highlights and Folder show the archive's own.
-	fs::path base = reviewing() ? fs::path(archive_.dir) : fs::path(dataDir());
+	// A session on the sample keeps its files in <data>/Sample (Sample.cpp).
+	fs::path base = reviewing() ? fs::path(archive_.dir) : rowsScope == ResultsScope::Session && isSample(source) && batch.empty()
+		? fs::path(dataDir()) / "Sample" : fs::path(dataDir());
 	if (ghostButton(ICON_FILM " Highlights")) openWithSystem((base / "HiLites").string());
 	ImGui::SameLine();
 	if (ghostButton(ICON_FOLDER " Folder")) openWithSystem(reviewing() ? base.string() : (base / "Stats").string());
@@ -4467,7 +4492,14 @@ void App::pageResults() {
 				  "and a snapshot, and stays here the next time you open VST Studio."
 				: "Run tracking on a video or camera and every measured vehicle lands here, with its speed, direction and a snapshot. "
 				  "Or use Open to look at an archive or the results of an earlier run.");
-		if (source.empty() && batch.empty()) { if ((saved ? ghostButton(ICON_VIDEO "  Choose a source") : primaryButton(ICON_VIDEO "  Choose a source"))) page = Page::Source; }
+		if (source.empty() && batch.empty()) {
+			// Nothing saved and nothing connected: the sample fills this page in a few minutes (its results stay in
+			// their own Sample folder; this page shows them for the session).
+			bool offerSample = !saved && !findSample().empty();
+			if (offerSample && primaryButton(ICON_PLAY "  Watch the sample measure")) trySample();
+			if (offerSample) ImGui::SameLine();
+			if (saved || offerSample ? ghostButton(ICON_CAMERA "  Connect a camera") : primaryButton(ICON_CAMERA "  Connect a camera")) goFlow(2);
+		}
 		else if (saved ? ghostButton(ICON_PLAY "  Start tracking") : primaryButton(ICON_PLAY "  Start tracking")) startTracking();
 		endCard();
 		return;
@@ -4836,7 +4868,9 @@ void App::resultsCharts(const std::vector<const ResultRow*>& shown, float width)
 report::Input App::reportInput(bool snapshots, const std::string& from, const std::string& to) {
 	const Globals& g = cfg.g;
 	report::Input in;
-	in.dataDir = dataDir();
+	// With the sample open, a report is about the sample (its own Sample folder, Sample.cpp); your street's report
+	// never takes in its 2016 cars.
+	in.dataDir = isSample(source) && batch.empty() ? (fs::path(dataDir()) / "Sample").string() : dataDir();
 	in.configPath = cfg.path();
 	// calibration-history.csv lives in the config folder: next to this VST.cfg, or the per-user config folder.
 	if (!cfg.path().empty()) in.historyFiles.push_back((fs::path(cfg.path()).parent_path() / "calibration-history.csv").string());
