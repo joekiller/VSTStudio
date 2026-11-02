@@ -40,6 +40,15 @@ in for you.
 
 Every error is printed to stderr, and the exit status is 1 on any error, so scripts can check it.
 
+## Coming from the 2016 VideoSpeedTracker
+
+If you ran Paul Reynolds' original 2016 VideoSpeedTracker (a `VST.cfg` next to the program, data in a folder like
+`g:\locustdata`), VST Studio finds it at launch and says what it found. **Pick up where I left off** copies your
+settings to `VST-2016.cfg` and your results into Studio's data folder, and opens your latest recording where it is.
+Nothing in the 2016 setup is changed, so the old program keeps working. If Studio doesn't find it (it's on another
+drive, say), use **Find my 2016 setup** at the bottom of **What you need**. See
+[VST Studio](vst-studio.md#coming-from-the-2016-videospeedtracker).
+
 ## Upgrading from an early release
 
 | What you see | What to do |
