@@ -76,6 +76,7 @@
 #include "Projection.h"
 #include "Snapshot.h"
 #include "UserPaths.h"
+#include "Legacy2016.h"
 #include "Engine.h"
 #include "PiCamera.h"
 #include "FrameInput.h"
@@ -662,6 +663,11 @@ void setup(){
 
 	// Outputs are named after the folder when processing all of it, else after the one video.
 	string stem = allFiles ? dirName : outputStem(fileName);
+	// Re-running a 2016 recording in a 2016 data folder gives the very name the 2016 program used for its results:
+	// write beside them, never over them (Legacy2016.h).
+	string kept = legacy2016::rerunStem(data / "Stats", stem);
+	if (kept != stem) cout << "Keeping the 2016 results in stats_" << stem << ".csv as they are; this run writes stats_" << kept << ".csv." << endl;
+	stem = kept;
 	error_code ec;
 	for (const char* sub : { "Stats", "Trace", "HiLites" }) fs::create_directories(data / sub, ec);
 
@@ -832,6 +838,11 @@ bool setupFromArgs(int argc, char** argv){
 		string piError;
 		string stem = isPiCamera(inputPath) && picam::parse(inputPath, pi, piError) ? "picam" + to_string(pi.camera) : fs::path(fileName).stem().string();
 		statsPath = "stats_" + stem + ".csv";
+	}
+	if (legacy2016::isStatsCsv(statsPath)){   // a 2016 program's results file: never replaced (Legacy2016.h)
+		fs::path kept = fs::path(statsPath).parent_path() / (fs::path(statsPath).stem().string() + "_rerun.csv");
+		cout << "Keeping the 2016 results in " << statsPath << " as they are; this run writes " << kept.string() << "." << endl;
+		statsPath = kept.string();
 	}
 	statsFile.open(statsPath);
 	if (!statsFile.is_open()){ cerr << "Can't write stats file " << statsPath << endl; return false; }

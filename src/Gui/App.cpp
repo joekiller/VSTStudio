@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <opencv2/imgcodecs.hpp>
@@ -113,6 +114,16 @@ void App::init(bool fresh, const std::string& configPath) {
 	std::string cfgPath = configPath.empty() ? prefs.configPath : configPath;
 	if (configPath.empty() && (cfgPath.empty() || !fs::exists(cfgPath))) cfgPath = userpaths::resolveConfig("VST.cfg");
 	if (!cfgPath.empty() && !loadConfig(cfgPath)) toast(cfg.error, c::bad, ICON_WARN);
+	// Look for a 2016 VideoSpeedTracker setup in the background (Legacy.cpp): the config just opened if it is one, then
+	// the places such a setup would be.  VST Studio's own data folder is never mistaken for one.
+	if (!fresh) {
+		std::string opened = cfg.legacy2016() ? fs::path(cfg.path()).parent_path().string() : std::string();
+		legacyScan_ = std::async(std::launch::async, [opened] {
+			std::vector<fs::path> where = legacy2016::searchFolders();
+			if (!opened.empty()) where.insert(where.begin(), fs::path(opened));
+			return legacy2016::scan(where, userpaths::dataDir());
+		});
+	}
 	// Reopen where the user left off: the page they were on, and the source they last connected.  Every kind of
 	// source comes back (resume::reopenAtLaunch); a camera or stream connects in the background, the header says
 	// "Connecting to Camera 0…", and if it doesn't answer frame() says the setup is safe and how to reconnect.
@@ -165,6 +176,13 @@ bool App::loadConfig(const std::string& path) {
 	if (tracker.running()) { toast("Stop tracking before switching configs", c::warn, ICON_WARN); return false; }
 	if (!cfg.load(path)) return false;
 	prefs.configPath = path;
+	// A 2016 VST.cfg is opened read only (Legacy.cpp): its calibration was counted on its own street and stands, and its
+	// file is never written, so nothing here may make it look edited.
+	if (cfg.legacy2016()) {
+		std::error_code ec;
+		if (prefs.calibratedFor.empty() || !fs::exists(prefs.calibratedFor, ec)) { prefs.calibratedFor = path; prefs.calibratedLines = speedLinesSig(); }
+		return true;
+	}
 	// A config still on the engine's default 18 on a slower street (set before minLoggedSpeed followed the limit):
 	// bring it in line once, so legal traffic at 12-17 mph on a 15 mph street is logged.  Autosave writes it.
 	if (cfg.g.minLoggedSpeed == calib::kDefaultMinLogged) cfg.g.minLoggedSpeed = calib::minLoggedForLimit(prefs.speedLimit);
@@ -213,6 +231,7 @@ void App::autosave() {
 	if (ImGui::IsAnyItemActive() || autosaveAt_ == 0) { autosaveAt_ = t + 0.8; return; }
 	if (t < autosaveAt_) return;
 	autosaveAt_ = 0;
+	if (cfg.legacy2016()) { legacyCopyOnWrite(); return; }   // never written: the edit carries on in a copy
 	if (cfg.save()) savedAt_ = t;
 	else toast(cfg.error, c::bad, ICON_WARN);
 }
@@ -231,8 +250,9 @@ void App::savePrefsSoon() {
 }
 
 std::string App::dataDir() {
-	// Same rule as the tracker: blank means the per-user data folder.
-	return userpaths::dataPath(cfg.g.dataPathPrefix).string();
+	// Same rule as the tracker: blank means the per-user data folder.  A 2016 VST.cfg still open read only names the
+	// 2016 data folder, which VST Studio never writes in: its results go to the per-user folder too.
+	return userpaths::dataPath(cfg.legacy2016() ? std::string() : cfg.g.dataPathPrefix).string();
 }
 
 std::string App::findSample() {
@@ -690,6 +710,36 @@ bool App::appendStatsRows(const std::string& path, const std::string& label, int
 	return true;
 }
 
+// When a vehicle in an older csv passed: Date/Time ("20160130", "172251", from the Foscam file name) is when the
+// recording started, and Frame is how far into it, so the start plus frame / fps, as "2016-01-30T17:22:58" like the
+// Timestamp column (no UTC offset: the 2016 program never knew it).  Unreadable stamps come back as they are.
+static std::string foscamPassed(const std::string& date, const std::string& time, int frame, double fps) {
+	auto digits = [](const std::string& s) { return std::all_of(s.begin(), s.end(), [](char ch) { return ch >= '0' && ch <= '9'; }); };
+	if (date.size() != 8 || time.size() != 6 || !digits(date) || !digits(time)) return date + " " + time;
+	int y = std::stoi(date.substr(0, 4)), m = std::stoi(date.substr(4, 2)), d = std::stoi(date.substr(6, 2));
+	long long secs = std::stoll(time.substr(0, 2)) * 3600 + std::stoll(time.substr(2, 2)) * 60 + std::stoll(time.substr(4, 2))
+		+ (long long)std::llround(std::max(frame, 0) / (fps > 0 ? fps : 30.0));
+	// Days since 1970-01-01 and back (H. Hinnant's civil calendar algorithms), so a recording running past midnight
+	// carries into the next day, month and year.
+	auto toDays = [](long long yy, unsigned mm, unsigned dd) {
+		yy -= mm <= 2;
+		long long era = (yy >= 0 ? yy : yy - 399) / 400;
+		unsigned yoe = unsigned(yy - era * 400), doy = (153 * (mm > 2 ? mm - 3 : mm + 9) + 2) / 5 + dd - 1;
+		return era * 146097 + (long long)(yoe * 365 + yoe / 4 - yoe / 100 + doy) - 719468;
+	};
+	long long days = toDays(y, unsigned(m), unsigned(d)) + secs / 86400;
+	secs %= 86400;
+	days += 719468;
+	long long era = (days >= 0 ? days : days - 146096) / 146097;
+	unsigned doe = unsigned(days - era * 146097), yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+	unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100), mp = (5 * doy + 2) / 153;
+	unsigned dd = doy - (153 * mp + 2) / 5 + 1, mm = mp < 10 ? mp + 3 : mp - 9;
+	long long yy = (long long)yoe + era * 400 + (mm <= 2);
+	char buf[96];
+	std::snprintf(buf, sizeof buf, "%04d-%02d-%02dT%02d:%02d:%02d", int(yy), int(mm), int(dd), int(secs / 3600), int(secs / 60 % 60), int(secs % 60));
+	return buf;
+}
+
 // `run` is the manifest beside the csv: the zone feet this run was measured with, which retimeRows() rescales from.
 void App::rowsFromStats(const std::vector<StatsRow>& stats, const calsets::RunInfo& run, const std::string& path,
 	const std::string& label, std::vector<ResultRow>& out) {
@@ -711,7 +761,7 @@ void App::rowsFromStats(const std::vector<StatsRow>& stats, const calsets::RunIn
 		r.fps = g.CalibrationFPS;
 		// The Timestamp column says when this vehicle passed; drop its UTC offset to match session rows ("yyyy-mm-ddThh:mm:ss").
 		// Older csvs only have Date/Time, which for Foscam recordings is when the recording started.
-		r.time = !s.timestamp.empty() ? s.timestamp.substr(0, 19) : s.date.empty() ? "" : s.date + " " + s.time;
+		r.time = !s.timestamp.empty() ? s.timestamp.substr(0, 19) : s.date.empty() ? "" : foscamPassed(s.date, s.time, s.frame, r.fps);
 		if (const CalPass* p = calibrationPass(path, r.frame)) { r.calKind = p->check ? 2 : 1; r.drivenMph = p->drivenMph; }
 		r.trend = s.trend;
 		r.entryMph = s.entryMph;
@@ -1363,6 +1413,7 @@ void App::frame(float w, float h) {
 	player.setLevel(cfg.g.levelDegrees);
 	pumpTracker();
 	healthTick();
+	legacyPump();
 	if (!tracker.running()) {
 		// Never waits: a live source's frames come from its reader thread.  A connection that fails, or a picture that
 		// is lost, ends here: say why and drop the source, so nothing stale stays on screen.
@@ -1432,6 +1483,7 @@ void App::frame(float w, float h) {
 	ImGui::EndChild();
 	ImGui::PopStyleVar();
 	ImGui::EndGroup();
+	legacyWelcomeModal();
 	drawToasts(w, h);
 	ImGui::End();
 }
@@ -1611,7 +1663,8 @@ void App::drawRail(float h) {
 	std::string cfgName = cfg.path().empty() ? "no config" : fs::path(cfg.path()).filename().string();
 	// Settings save themselves, so the only states worth showing are "saving", "can't save yet" and "saved".
 	bool broken = !cfg.path().empty() && !cfg.problems().empty();
-	const char* cfgState = cfg.path().empty() ? "" : broken ? "  needs fixing" : cfg.dirty() && autosaveAt_ > 0 ? "  saving…"
+	// A 2016 VST.cfg is never written (Legacy.cpp): say so rather than "saved".
+	const char* cfgState = cfg.path().empty() ? "" : cfg.legacy2016() ? "  2016, read only" : broken ? "  needs fixing" : cfg.dirty() && autosaveAt_ > 0 ? "  saving…"
 		: (savedAt_ > 0 && now() - savedAt_ < 3) ? "  saved " ICON_CHECK : "  saved";
 	std::string l1 = std::string(ICON_GEAR "  ") + cfgName + cfgState;
 	dl->AddText(fonts.caption, fsz(fonts.caption), p + ImVec2(px(12), px(38)), broken ? c::bad : c::dim, l1.c_str());

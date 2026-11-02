@@ -1,5 +1,6 @@
 #include "Settings.h"
 #include "UserPaths.h"
+#include "Legacy2016.h"
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -141,6 +142,7 @@ bool ConfigDoc::load(const std::string& path) {
 	g.~Globals();
 	new (&g) Globals(fresh);
 	path_ = path;
+	legacy_ = legacy2016::isConfig(path);
 	lines_.clear();
 	std::ifstream in(path);
 	for (std::string l; std::getline(in, l);) {
@@ -184,6 +186,7 @@ std::string ConfigDoc::render() const {
 
 bool ConfigDoc::save() {
 	if (path_.empty()) { error = "No config file to save to"; return false; }
+	if (legacy_) { error = path_ + " is a 2016 VideoSpeedTracker file and stays exactly as it is"; return false; }
 	std::error_code ec;
 	fs::create_directories(fs::path(path_).parent_path(), ec);
 	std::string text = render();
@@ -212,6 +215,7 @@ bool ConfigDoc::hasBackup() const {
 bool ConfigDoc::restoreBackup() {
 	// Put the session's original back on disk and reload it; the .bak stays, so this can be repeated.
 	if (!hasBackup()) { error = "Nothing to undo yet"; return false; }
+	if (legacy_) { error = path_ + " is a 2016 VideoSpeedTracker file and stays exactly as it is"; return false; }
 	std::ifstream in(backupPath(), std::ios::binary);
 	std::stringstream text;
 	text << in.rdbuf();
@@ -221,8 +225,23 @@ bool ConfigDoc::restoreBackup() {
 }
 
 bool ConfigDoc::saveAs(const std::string& path) {
+	if (path != path_) legacy_ = false;   // a new file, written in today's format
 	path_ = path;
 	return save();
+}
+
+bool ConfigDoc::moveTo(const std::string& copy) {
+	std::ifstream in(copy);
+	if (!in) { error = "Can't read " + copy; return false; }
+	lines_.clear();
+	for (std::string l; std::getline(in, l);) {
+		if (!l.empty() && l.back() == '\r') l.pop_back();
+		lines_.push_back(l);
+	}
+	path_ = copy;
+	legacy_ = false;
+	backedUp_.clear();
+	return true;   // still dirty if g has edits: the next save writes them into the copy
 }
 
 std::string ConfigDoc::writeRunCopy(const std::string& dir) const {
@@ -266,6 +285,7 @@ void AppPrefs::load() {
 	str("config", configPath); str("source", lastSource); str("site", siteName); str("remoteToken", remoteToken);
 	str("remoteAddress", remoteAddress);
 	str("zonesFor", zonesFor); str("zonesFrame", zonesFrame); str("calibratedFor", calibratedFor); str("calibratedLines", calibratedLines); str("lastPage", lastPage);
+	str("legacySeen", legacySeen); str("legacyImported", legacyImported); str("legacyData", legacyData);
 	b("planDistMeasured", planDistMeasured);
 	str("planNote", planNote); str("planCalSig", planCalSig); i("planSource", planSource); d("planCarLengths", planCarLengths);
 	i("speedLimit", speedLimit); i("egregious", egregious); i("calibTarget", calibTarget); i("hlMin", hlMin); i("hlMax", hlMax); i("hlArea", hlArea);
@@ -308,7 +328,8 @@ std::string AppPrefs::render() const {
 		<< "\nsiteLat = " << std::setprecision(10) << siteLat << "\nsiteLon = " << siteLon
 		<< "\nplanCamLat = " << planCamLat << "\nplanCamLon = " << planCamLon << std::setprecision(6)
 		<< "\nplanStreet = " << planStreet << "\nplanAutosave = " << planAutosave << "\nplanDraft = " << planDraft
-		<< "\ncalibratedFor = " << calibratedFor << "\ncalibratedLines = " << calibratedLines << "\nplanConfirmed = " << planConfirmed << "\nlastPage = " << lastPage << "\nplanDistMeasured = " << planDistMeasured << "\n";
+		<< "\ncalibratedFor = " << calibratedFor << "\ncalibratedLines = " << calibratedLines << "\nplanConfirmed = " << planConfirmed << "\nlastPage = " << lastPage << "\nplanDistMeasured = " << planDistMeasured
+		<< "\nlegacySeen = " << legacySeen << "\nlegacyImported = " << legacyImported << "\nlegacyData = " << legacyData << "\n";
 	for (auto& r : recent) out << "recent = " << r << "\n";
 	return out.str();
 }
