@@ -29,7 +29,7 @@ void Texture::reset() {
 	w_ = h_ = 0;
 }
 
-void Texture::update(const cv::Mat& image) {
+void Texture::update(const cv::Mat& image, bool streaming) {
 	if (image.empty()) return;
 	switch (image.channels()) {
 	case 1: cv::cvtColor(image, rgba_, cv::COLOR_GRAY2RGBA); break;
@@ -53,6 +53,7 @@ void Texture::update(const cv::Mat& image) {
 	}
 	else
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w_, h_, GL_RGBA, GL_UNSIGNED_BYTE, rgba_.data);
+	if (!streaming) rgba_.release();   // glTex*Image copied the pixels: w_ and h_ still describe the texture
 }
 
 static std::string lowerExt(const std::string& path) {

@@ -7,6 +7,7 @@
 // clip for that vehicle out of the ring -> pollKey implements pause/stop and real-time pacing -> onSourceStatus tracks a
 // live source that dropped out and is being reconnected by the engine.
 #pragma once
+#include "Archive.h"
 #include "Engine.h"
 #include <atomic>
 #include <chrono>
@@ -46,7 +47,11 @@ struct Vehicle {
 	// a video ("" when the recording's start time isn't known).  `time` alone is when this computer logged it, which for
 	// a video played today is today, not when the car drove by.
 	const std::string& passed() const { return live ? time : recorded; }
-	cv::Mat snapshot;           // BGR crop around the vehicle at the end speed line
+	// Crop around the vehicle at the end speed line, kept as JPEG bytes (archive::Jpeg): ~20 KB instead of ~260 KB as a
+	// BGR Mat, which over the kMaxVehicles a long session keeps was more than a gigabyte.  Null = none.
+	archive::Jpeg snapshotJpg;
+	bool hasSnapshot() const { return snapshotJpg && !snapshotJpg->empty(); }
+	cv::Mat snapshot() const { return archive::decodeJpeg(snapshotJpg); }   // decoded to BGR; empty if none
 	std::string clipPath;       // short mp4 of the analysis box, empty if none
 };
 

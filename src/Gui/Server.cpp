@@ -785,12 +785,12 @@ void Server::routes() {
 
 	http_->Get(R"(/api/vehicles/(\d+)/snapshot\.jpg)", guard([&app, sendJson](const Request& req, Response& res) {
 		Vehicle v;
-		std::vector<uchar> jpg;
-		if (!app.tracker.vehicle(std::atoi(req.matches[1].str().c_str()), v) || v.snapshot.empty() || !cv::imencode(".jpg", v.snapshot, jpg)) {
+		if (!app.tracker.vehicle(std::atoi(req.matches[1].str().c_str()), v) || !v.hasSnapshot()) {
 			sendJson(res, { { "error", "no snapshot for this vehicle" } }, 404);
 			return;
 		}
-		res.set_content(std::string(jpg.begin(), jpg.end()), "image/jpeg");
+		// Kept as a JPEG since it was logged (Vehicle::snapshotJpg): sent as it is, no encode per request.
+		res.set_content(std::string(v.snapshotJpg->begin(), v.snapshotJpg->end()), "image/jpeg");
 	}));
 
 	http_->Get(R"(/api/vehicles/(\d+)/clip\.mp4)", guard([&app, sendJson](const Request& req, Response& res) {

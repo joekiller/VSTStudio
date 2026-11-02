@@ -289,7 +289,7 @@ void Tracker::onVehicle(const vst::VehicleEvent& e) {
 		int x = std::clamp(cx - w / 2, 0, r.roi.cols - w);
 		return cv::Rect(x, 0, w, h);
 	};
-	if (best) v.snapshot = best->roi(cropFor(*best)).clone();
+	if (best) v.snapshotJpg = archive::encodeJpeg(best->roi(cropFor(*best)));   // encoded once, here on the worker thread
 
 	// Clip: the analysis box from a little before the first speed line to now, for the companion app.
 	std::vector<const RingEntry*> clip;

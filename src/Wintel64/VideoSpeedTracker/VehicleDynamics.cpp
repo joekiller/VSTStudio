@@ -115,6 +115,7 @@ void VehicleDynamics::holdFrame(Mat inMat){
 
 void VehicleDynamics::saveFrame(Mat inMat){
 	hiLiteFeeds.push_back(inMat);
+	if (hiLiteFeeds.size() > kMaxHiLiteFeeds) hiLiteFeeds.erase(hiLiteFeeds.begin());  // a rolling window: see kMaxHiLiteFeeds
 }
 
 Mat VehicleDynamics::getHeldFrame(){

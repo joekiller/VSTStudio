@@ -791,10 +791,12 @@ bool App::publishCorrected(const dataset::Info& old, const dataset::Calibration&
 		s.row = a.vehicles[i];
 		if (i < d.points.size()) s.row.speed = d.points[i].speed;
 		if (!a.vehicles[i].snapshot.empty()) {
-			// imdecode of the bytes rather than imread, which can't open non-ASCII paths on Windows.
+			// Read through a stream rather than imread, which can't open non-ASCII paths on Windows.
 			std::ifstream in(fs::path(old.dir) / fs::path(a.vehicles[i].snapshot), std::ios::binary);
 			std::vector<uchar> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-			if (!bytes.empty()) s.snapshot = cv::imdecode(bytes, cv::IMREAD_COLOR);
+			// Kept as the file's bytes: archive::write() copies them out as they are, so a correction of a big
+			// dataset never holds every snapshot decoded at once.
+			if (!bytes.empty()) s.snapshot = std::make_shared<const std::vector<unsigned char>>(std::move(bytes));
 		}
 		if (!a.vehicles[i].clip.empty()) s.clipPath = (fs::path(old.dir) / a.vehicles[i].clip).string();
 		req.vehicles.push_back(s);

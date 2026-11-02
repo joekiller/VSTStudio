@@ -3,7 +3,7 @@
 // healthTick() runs every frame on the GUI thread and is cheap: it adds the frame's time to today's tracked or
 // outage hours, counts outages and vehicles, rolls the day over into <data>/Stats/health.csv, and every so often
 // starts the slower work:
-//   * every 10 minutes (and once at startup): prune Clips/ + HiLites/ to the budget on a worker thread
+//   * every 10 minutes (and once at startup): prune Clips/ + HiLites/ + Trace/ to the budget on a worker thread
 //     (std::async), since listing thousands of clips shouldn't stall a frame;
 //   * every 2 minutes of a live run with pictures: compare the newest frame with the reference view.  The
 //     reference is taken from the first checked frame whenever there is none for the current zones, so redrawing
@@ -138,7 +138,7 @@ void App::healthTick() {
 		fs::path data = dataDir();
 		std::uintmax_t budget = health.budgetBytes;
 		pruning_ = std::async(std::launch::async, [data, budget] {
-			std::vector<fs::path> dirs = { data / "Clips", data / "HiLites" };
+			std::vector<fs::path> dirs = { data / "Clips", data / "HiLites", data / "Trace" };
 			std::uintmax_t free = health::freeBytes(data);
 			PruneJob j;
 			j.pruned = health::pruneTo(dirs, health::targetBytes(health::usage(dirs), budget, free, kMinFreeBytes));

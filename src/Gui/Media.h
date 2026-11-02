@@ -4,6 +4,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include "FrameInput.h"   // the frame input port: every frame the preview shows comes in through it
 #include "PiCamera.h"
@@ -16,7 +17,9 @@ public:
 	~Texture();
 	Texture(const Texture&) = delete;
 	Texture& operator=(const Texture&) = delete;
-	void update(const cv::Mat& image);
+	// Converts to RGBA in rgba_ and uploads.  `streaming` keeps rgba_ for the next update (video: no reallocation per frame);
+	// a still uploaded once (a snapshot in Results' cache) passes false so only the GPU holds its pixels, not a CPU copy too.
+	void update(const cv::Mat& image, bool streaming = true);
 	void reset();
 	bool valid() const { return id_ != 0; }
 	void* imguiId() const { return (void*)(intptr_t)id_; }
@@ -26,6 +29,43 @@ private:
 	unsigned id_ = 0;
 	int w_ = 0, h_ = 0;
 	cv::Mat rgba_;
+};
+
+// Textures for stills drawn in lists (Results' snapshots, by vehicle id or file path), loaded on demand and capped, so
+// scrolling through thousands of rows over a long session doesn't keep a texture for every one.  When an insert takes it
+// over kMax, the entries drawn longest ago go first; anything drawn this frame or the one before stays, since ImGui
+// draws the frame's images after this code returns and must never be handed a texture that has been deleted.
+// GUI thread only.  `frame` is ImGui::GetFrameCount() (any counter that goes up once a frame).
+template <class Key>
+class TextureCache {
+public:
+	static constexpr size_t kMax = 300;
+	// The cached texture (null: tried before, couldn't load), marking it drawn this frame; `found` false = not cached yet.
+	Texture* find(const Key& key, int frame, bool& found) {
+		auto it = map_.find(key);
+		found = it != map_.end();
+		if (!found) return nullptr;
+		it->second.drawn = frame;
+		return it->second.tex.get();
+	}
+	// Caches `tex` (null to remember a failure), evicting as described above.
+	Texture* put(const Key& key, std::unique_ptr<Texture> tex, int frame) {
+		Texture* raw = tex.get();
+		map_[key] = { std::move(tex), frame };
+		while (map_.size() > kMax) {
+			auto oldest = map_.end();
+			for (auto it = map_.begin(); it != map_.end(); ++it)
+				if (it->second.drawn < frame - 1 && (oldest == map_.end() || it->second.drawn < oldest->second.drawn)) oldest = it;
+			if (oldest == map_.end()) break;   // all on screen right now: over the cap until they scroll away
+			map_.erase(oldest);
+		}
+		return raw;
+	}
+	void clear() { map_.clear(); }
+	size_t size() const { return map_.size(); }
+private:
+	struct Entry { std::unique_ptr<Texture> tex; int drawn = 0; };
+	std::map<Key, Entry> map_;
 };
 
 // What a source is, as the rest of the app talks about it.

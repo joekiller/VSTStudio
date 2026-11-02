@@ -94,7 +94,9 @@ int main(int argc, char** argv) {
 	req.historyFiles = { (cfgDir / "missing.csv").string(), (cfgDir / "calibration-history.csv").string() };
 	archive::Source a, b, c;
 	a.row.speed = 31; a.row.passed = "2026-11-02T07:05:00"; a.row.compass = "SE"; a.row.source = "cam</script><b>x";
-	a.snapshot = cv::Mat(40, 96, CV_8UC3, cv::Scalar(20, 120, 220));
+	a.snapshot = archive::encodeJpeg(cv::Mat(40, 96, CV_8UC3, cv::Scalar(20, 120, 220)));   // kept encoded, as Tracker keeps it
+	CHECK(a.snapshot && archive::decodeJpeg(a.snapshot).size() == cv::Size(96, 40));
+	CHECK(!archive::encodeJpeg(cv::Mat()) && archive::decodeJpeg(nullptr).empty());
 	a.clipPath = (data / "Clips" / "vehicle_1.mp4").string();
 	b.row.speed = 12; b.row.l2r = false; b.row.wrongWay = true; b.row.passed = "2026-11-03T17:10:00"; b.row.compass = "NW";
 	b.clipPath = (data / "Clips" / "vehicle_2.mp4").string();
@@ -160,6 +162,11 @@ int main(int argc, char** argv) {
 	CHECK(info.moved);
 	CHECK_EQ(info.vehicles.size(), size_t(3));
 	CHECK_EQ(info.vehicles[0].snapshot, std::string("Snapshots/vehicle_1.jpg"));
+	{	// the kept JPEG is written as it is, not decoded and encoded again
+		std::ifstream in(fs::path(info.dir) / info.vehicles[0].snapshot, std::ios::binary);
+		std::vector<unsigned char> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+		CHECK(bytes == *a.snapshot);
+	}
 	CHECK_EQ(info.vehicles[0].clip, std::string("Clips/vehicle_1.mp4"));
 	CHECK_EQ(info.vehicles[0].source, std::string("cam</script><b>x"));
 	CHECK(!info.vehicles[1].l2r && info.vehicles[1].wrongWay && info.vehicles[1].snapshot.empty());
