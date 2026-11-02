@@ -169,6 +169,12 @@ private:
 
 // for hilites reel
 	Mat lastFeed;
+	// The analysis box at every frame pair since the vehicle passed the first speed line, kept until it is known whether the
+	// vehicle goes in the highlights reel.  Each one is a full copy of the box (~0.7 MB at the 2016 view's 1269x190), so a
+	// track that lingers (a walker, a car creeping in traffic) once held hundreds of MB.  saveFrame() keeps only the newest
+	// kMaxHiLiteFeeds: a reel vehicle (fast, or large at any speed) crosses the zone in far fewer, and the newest frames are
+	// the ones that show it reach the far line.
+	static constexpr size_t kMaxHiLiteFeeds = 120;  // 4 s of frame pairs at 60 fps, 8 s at 30 fps; at most ~85 MB a track
 	vector<Mat> hiLiteFeeds;
 
 

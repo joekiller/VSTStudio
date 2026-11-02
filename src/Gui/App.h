@@ -450,8 +450,8 @@ private:
 	// the player's on a setup page.  The serials say which frame each one last got (-1 = none since the run started).
 	long liveTexSerial_ = -1, fedSerial_ = -1;
 	double runLevel_ = 0;               // cfg.g.levelDegrees when the run started: the angle its frames already carry
-	std::map<int, std::unique_ptr<Texture>> snapTex_;
-	std::map<std::string, std::unique_ptr<Texture>> fileTex_;
+	TextureCache<int> snapTex_;           // this session's snapshots by vehicle id (snapshotTexture)
+	TextureCache<std::string> fileTex_;   // an archive's snapshots by path (fileTexture)
 	archive::Info archive_;             // the archive Results is reviewing (dir empty = none)
 	std::vector<archive::Info> archives_;   // the Open menu's list, read when the menu opens
 	std::vector<dataset::Info> publishedList_;   // the Open menu's published datasets, read with archives_

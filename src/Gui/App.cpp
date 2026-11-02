@@ -848,16 +848,14 @@ void App::sizeRows() {
 }
 
 Texture* App::snapshotTexture(int id) {
-	auto it = snapTex_.find(id);
-	if (it != snapTex_.end()) return it->second.get();
+	bool cached;
+	Texture* hit = snapTex_.find(id, ImGui::GetFrameCount(), cached);
+	if (cached) return hit;
 	Vehicle v;
-	if (!tracker.vehicle(id, v) || v.snapshot.empty()) return nullptr;
+	if (!tracker.vehicle(id, v) || !v.hasSnapshot()) return nullptr;   // not cached: the vehicle may get one later
 	auto t = std::make_unique<Texture>();
-	t->update(v.snapshot);
-	Texture* raw = t.get();
-	snapTex_[id] = std::move(t);
-	if (snapTex_.size() > 300) snapTex_.erase(snapTex_.begin());   // oldest ids first
-	return raw;
+	t->update(v.snapshot(), false);   // decoded from the kept JPEG for the upload only
+	return snapTex_.put(id, std::move(t), ImGui::GetFrameCount());
 }
 
 // ---- archived datasets (Archive.h) --------------------------------------------------------------------------
@@ -910,18 +908,17 @@ bool App::openArchive(const std::string& dir) {
 }
 
 Texture* App::fileTexture(const std::string& path) {
-	auto it = fileTex_.find(path);
-	if (it != fileTex_.end()) return it->second.get();   // a null entry: tried, unreadable
+	bool cached;
+	Texture* hit = fileTex_.find(path, ImGui::GetFrameCount(), cached);
+	if (cached) return hit;   // null: tried, unreadable
 	// imdecode of the bytes rather than imread, which can't open non-ASCII paths on Windows.  A snapshot is a still for
 	// the detail card, not a frame to track, so it doesn't go through the frame input port.
 	std::unique_ptr<Texture> t;
 	std::ifstream in(fs::path(path), std::ios::binary);
 	std::vector<uchar> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 	cv::Mat img = bytes.empty() ? cv::Mat() : cv::imdecode(bytes, cv::IMREAD_COLOR);
-	if (!img.empty()) { t = std::make_unique<Texture>(); t->update(img); }
-	Texture* raw = t.get();
-	fileTex_[path] = std::move(t);
-	return raw;
+	if (!img.empty()) { t = std::make_unique<Texture>(); t->update(img, false); }
+	return fileTex_.put(path, std::move(t), ImGui::GetFrameCount());
 }
 
 // What "Archive" takes from what Results shows: the stats csvs behind the rows (with their manifests and highlights),
@@ -980,7 +977,7 @@ archive::Request App::archiveRequest(const std::string& name, bool move, const s
 		v.drivenMph = r.drivenMph;
 		v.run = r.statsPath.empty() ? std::string() : fs::path(r.statsPath).filename().string();
 		Vehicle tv;
-		if (r.vehicleId && tracker.vehicle(r.vehicleId, tv)) { s.snapshot = tv.snapshot; s.clipPath = tv.clipPath; }
+		if (r.vehicleId && tracker.vehicle(r.vehicleId, tv)) { s.snapshot = tv.snapshotJpg; s.clipPath = tv.clipPath; }
 		req.vehicles.push_back(std::move(s));
 	}
 	// The user's own calibration and check drives (write() keeps those among these runs), so the archive still marks them
@@ -4871,8 +4868,8 @@ report::Input App::reportInput(bool snapshots, const std::string& from, const st
 		std::string when = v.passed();
 		std::string day = when.substr(0, 10);
 		if (calibrationPass(v.statsPath, v.ev.frame)) continue;   // the user's own drive isn't an example of the street's traffic
-		if (v.snapshot.empty() || (!from.empty() && (day.empty() || day < from)) || (!to.empty() && (day.empty() || day > to))) continue;
-		std::string jpeg = report::blurForReport(v.snapshot);
+		if (!v.hasSnapshot() || (!from.empty() && (day.empty() || day < from)) || (!to.empty() && (day.empty() || day > to))) continue;
+		std::string jpeg = report::blurForReport(v.snapshot());
 		if (!jpeg.empty()) in.snapshots.push_back({ jpeg, v.ev.speed, v.ev.leftToRight, when });
 	}
 	return in;

@@ -41,6 +41,7 @@
 #include "CalEvidence.h"
 #include "CalSets.h"
 #include <opencv2/core.hpp>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -105,10 +106,19 @@ struct Info {
 	const calsets::Set* setOf(const Vehicle& v) const { return v.run.empty() ? nullptr : sets.ofRun(v.run); }
 };
 
+// A picture kept as its JPEG file's bytes, shared rather than copied.  A session's snapshots are held this way (Tracker's
+// Vehicle::snapshotJpg) because a decoded BGR crop is ~260 KB against ~20 KB encoded: thousands of them would hold
+// gigabytes on a box left running.  Shared, so copying a vehicle list or an archive request never copies pictures.
+using Jpeg = std::shared_ptr<const std::vector<unsigned char>>;
+// Encodes a BGR picture at the given JPEG quality; null when it is empty or can't be encoded.
+Jpeg encodeJpeg(const cv::Mat& bgr, int quality = 90);
+// Decodes one to BGR; an empty Mat for null or unreadable bytes.
+cv::Mat decodeJpeg(const Jpeg& jpg);
+
 // One vehicle to archive: its row, plus where its picture and clip come from.
 struct Source {
 	Vehicle row;                          // snapshot and clip are ignored; write() fills them in
-	cv::Mat snapshot;                     // BGR; empty = none (rows read back from a csv have none)
+	Jpeg snapshot;                        // the JPEG, written as it is; null = none (rows read back from a csv have none)
 	std::string clipPath;                 // the clip in the data folder's Clips/; "" = none
 };
 

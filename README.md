@@ -234,6 +234,11 @@ ctest --test-dir build
 speeds within 1 MPH), the `VST.cfg` parser and argument errors, and the first-run per-user config (Linux and macOS
 only).
 
+For a box left running for days, `soak_test` (Linux, built on request: `cmake --build build --target soak_test`) runs the
+tracker the way VST Studio does and prints its memory every 10 s, so growth over a long run shows up in minutes. Run it on
+a looped live stream (`build/src/Gui/soak_test <url> bin/VST.cfg <data dir> <seconds> live`) or on a video tracked again and
+again (`... <video> ... runs`); `tests/soak_test.cpp` says more.
+
 ### Pre-commit hook and CI
 
 Pull requests get a Linux job (`.github/workflows/build.yml`) plus Windows and macOS checks

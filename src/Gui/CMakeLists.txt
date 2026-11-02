@@ -194,3 +194,12 @@ install(FILES ${FA_DIR}/LICENSE.txt DESTINATION ${VST_GUI_NOTICE_DIR}/font-aweso
 install(FILES ${SINGLE_DIR}/LICENSE.httplib DESTINATION ${VST_GUI_NOTICE_DIR}/cpp-httplib RENAME LICENSE)
 install(FILES ${SINGLE_DIR}/LICENSE.json DESTINATION ${VST_GUI_NOTICE_DIR}/nlohmann-json RENAME LICENSE)
 install(FILES ${CMAKE_SOURCE_DIR}/packaging/qrcodegen-LICENSE.txt DESTINATION ${VST_GUI_NOTICE_DIR}/qrcodegen RENAME LICENSE)
+
+# Long-run memory soak (tests/soak_test.cpp): the tracker driven as VST Studio drives it, printing resident memory every
+# 10 s.  Linux only (reads /proc), not built by default and not a ctest test, since a useful soak runs for many minutes:
+#   cmake --build build --target soak_test && build/src/Gui/soak_test <input> <VST.cfg> <data dir> <seconds> [live|runs]
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_executable(soak_test EXCLUDE_FROM_ALL ${CMAKE_SOURCE_DIR}/tests/soak_test.cpp Tracker.cpp Media.cpp)
+  target_include_directories(soak_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(soak_test PRIVATE vst_engine vst_report imgui_lib OpenGL::GL Threads::Threads)
+endif()

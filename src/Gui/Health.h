@@ -2,7 +2,8 @@
 // health log.  No ImGui or OpenGL, so tests/health_test.cpp links it on its own (vst_report library).
 //
 // Disk: per-vehicle clips (<data>/Clips) and highlight videos (<data>/HiLites) grow without end on a live camera,
-// so App prunes them to a budget, oldest first.  Stats csvs, run manifests, reports and the calibration history are
+// so App prunes them to a budget, oldest first.  Trace files (<data>/Trace, only when Settings turns tracing on, about
+// 14 MB an hour of video) share that budget, since a trace forgotten on would otherwise fill the disk.  Stats csvs, run manifests, reports and the calibration history are
 // never touched: they are small and they are the evidence.  When the disk itself runs low (under minFree), the
 // target drops further so the stats csv always has room.
 //

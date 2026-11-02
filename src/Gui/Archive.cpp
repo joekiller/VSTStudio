@@ -16,6 +16,17 @@ using json = nlohmann::json;
 
 namespace archive {
 
+Jpeg encodeJpeg(const cv::Mat& bgr, int quality) {
+	std::vector<unsigned char> bytes;
+	if (bgr.empty() || !cv::imencode(".jpg", bgr, bytes, { cv::IMWRITE_JPEG_QUALITY, quality })) return nullptr;
+	return std::make_shared<const std::vector<unsigned char>>(std::move(bytes));
+}
+
+cv::Mat decodeJpeg(const Jpeg& jpg) {
+	if (!jpg || jpg->empty()) return cv::Mat();
+	return cv::imdecode(*jpg, cv::IMREAD_COLOR);
+}
+
 // ---- small helpers -----------------------------------------------------------------------------------------
 
 static bool writeText(const fs::path& p, const std::string& text) {
@@ -259,11 +270,11 @@ bool write(const Request& req, std::string& dir, std::string& error, std::vector
 		Vehicle v = s.row;
 		v.snapshot.clear();
 		v.clip.clear();
-		if (!s.snapshot.empty()) {
-			std::vector<uchar> jpg;
+		if (s.snapshot && !s.snapshot->empty()) {
+			// Already a JPEG (encoded once when the vehicle was logged, or the old archive's file): written as it is, so
+			// archiving thousands of vehicles neither decodes them all into memory nor loses quality to a re-encode.
 			std::string rel = "Snapshots/vehicle_" + std::to_string(i + 1) + ".jpg";
-			if (cv::imencode(".jpg", s.snapshot, jpg, { cv::IMWRITE_JPEG_QUALITY, 90 })
-				&& writeText(tmp / rel, std::string(jpg.begin(), jpg.end())))
+			if (writeText(tmp / rel, std::string(s.snapshot->begin(), s.snapshot->end())))
 				v.snapshot = rel;
 			else warn("Vehicle " + std::to_string(i + 1) + "'s snapshot couldn't be saved.");
 		}
