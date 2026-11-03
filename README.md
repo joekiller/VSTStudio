@@ -24,8 +24,8 @@ Raspberry Pi.
 1. **Download** the package for your computer from the
    [latest release](https://github.com/joekiller/VideoSpeedTracker/releases/latest) and install it
    ([which file?](docs/install.md)).
-2. **Open VST Studio.** No camera yet? On step 3, **Use the sample** opens a 2016 recording of a real street, so you
-   can watch cars get measured first.
+2. **Open VST Studio.** No camera yet? **Watch the sample measure** on the first page plays a 2016 recording of a real
+   street, so you can watch cars get measured first.
 3. **Follow the five steps** in the side rail. [Getting started](docs/getting-started.md) goes through them.
 
 ## How it measures speed

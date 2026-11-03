@@ -24,15 +24,15 @@ check that a download is genuine.
 
 ## 2. Open VST Studio and watch it work
 
-Open **VST Studio** from the Start menu, Applications, or your Linux applications menu. It opens on step 1 of setup.
-To see it work before you do anything else:
+Open **VST Studio** from the Start menu, Applications, or your Linux applications menu. It opens on step 1 of setup,
+**What you need**. To see it work before you do anything else, press **Watch the sample measure** on the *See it work
+first* card. That opens eight minutes of Locust Avenue in Charlottesville, recorded in 2016 by VST's original author,
+and starts measuring.
 
-1. Click **Connect the camera** (step 3) in the side rail and press **Use the sample**. That opens eight minutes of
-   Locust Avenue in Charlottesville, recorded in 2016 by VST's original author.
-2. Click **Live tracking** and press **Start tracking**.
-
-Each car gets a box, a bar on its front bumper, and a speed as it crosses the second white line. When you're ready,
-go back to step 1, **What you need**, and work through the steps with your own view.
+Each car gets a box, a bar on its front bumper, and a speed as it crosses the second white line. The sample's results
+are kept apart from yours, in a `Sample` folder, so they never mix into your street's runs or report. When you're
+ready, press **Set up my street** on the *This is the sample, not your street* card and work through the steps with
+your own view.
 
 ## 3. Follow the five setup steps
 
@@ -49,7 +49,7 @@ step at any time; nothing is lost.
    is enough with short-view timing, which the planner offers when it sees one.
 3. **Connect the camera.** A USB webcam, a phone in USB webcam mode, a network camera's address, a Raspberry Pi
    camera, or a recording. VST picks the camera's best mode for timing and says, in plain words, what it can and
-   can't do. No camera yet? Keep using the sample, or a photo of your view to plan with.
+   can't do. No camera yet? A photo of your view is enough to plan with, and **Use the sample** is here too.
 4. **Mark your street.** Drag the box around the street, the two white speed lines, and the lane line onto the
    cars' hubcaps. Set the compass direction and, for a one-way street, which way is legal: VST then flags every
    wrong-way driver. A crooked camera or a street at a slant each have a one-click fix here.

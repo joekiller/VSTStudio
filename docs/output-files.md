@@ -17,6 +17,7 @@ computer is in [Installing](install.md#where-settings-and-data-live).
 | `Reports/` | Street reports, one HTML file each. |
 | `Archive/<date>_<name>/` | Datasets you put away with **Archive** in Results. |
 | `Published/<date>_<name>/` | Datasets frozen with **Publish**, for others to check ([dataset-schema.md](dataset-schema.md)). |
+| `Sample/` | The bundled sample's own `Stats`, `HiLites` and `Reports`, kept apart so the sample never appears in your saved runs, your phone or your street report. |
 | `IPCam/` | Recordings for the command line's interactive mode, one folder per day. |
 | `Trace/` | Debug traces, when asked for. |
 

@@ -9,7 +9,7 @@ in for you.
 
 | What you see | What to do |
 |---|---|
-| No camera yet | That's fine. Step 3 offers the bundled sample video, so you can try everything first. A phone in USB webcam mode, or a recording from a phone, works as a camera. |
+| No camera yet | That's fine. **Watch the sample measure** on step 1 plays the bundled sample video, so you can see it work first. A phone in USB webcam mode, or a recording from a phone, works as a camera. |
 | The view from your window seems too short | About 14 ft of clear street is enough with short-view timing; step 2's site planner says what your view can time and offers **Use short-view timing**. Record at 60 fps if your camera can. |
 | The camera isn't mounted level, or the street runs at a slant | Step 4: **Level the picture** for a tilted camera, or drag the ends of the lane line to follow a slanted street. |
 | No car handy to calibrate, or nobody to drive | Step 5: **Cones or pole** (one person, one pole, a tape measure) or **Known car** (any parked car of a model you know). A drive past later checks it. |
