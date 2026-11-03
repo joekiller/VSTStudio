@@ -99,7 +99,7 @@ The binaries are then signed with the hardened runtime and notarized with `notar
 VST Studio and the FFmpeg dylibs in `Contents/Frameworks`; they are signed first (inside-out, no `--deep`), so the
 bundle seals them and one notarization covers the lot. The `.dmg` holds only the stapled app and an Applications link; it is then signed,
 notarized and stapled itself (a second, short notary submission). The job ends with `spctl --assess` on the app, so a release whose
-app Gatekeeper would refuse fails instead of publishing; the README shows the same checks for a downloaded copy.
+app Gatekeeper would refuse fails instead of publishing; [Installing](install.md#is-the-download-genuine) shows the same checks for a downloaded copy.
 
 ## Linux and checksums: build provenance
 
@@ -107,7 +107,7 @@ Nothing to set up, no secrets, no cost beyond a few seconds of the tag build. Ev
 also the Windows and macOS files) gets a GitHub artifact attestation: the job's short-lived OIDC identity is
 exchanged with Sigstore for a ten-minute certificate naming this repo, `release.yml` and the tag, which signs an
 SLSA provenance statement over the file's sha256, and the signature is logged in Sigstore's public transparency
-log. Nobody holds a key, so there is no key to steal or rotate. The README shows how to verify.
+log. Nobody holds a key, so there is no key to steal or rotate. [Installing](install.md#is-the-download-genuine) shows how to verify.
 
 The release is created as a draft. Once every platform is uploaded, the last job (`checksums`) writes `SHA256SUMS`
 from the digests GitHub recorded for the stored assets, attests it, uploads it with `SHA256SUMS.sigstore.json` (the

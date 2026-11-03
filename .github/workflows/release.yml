@@ -35,7 +35,7 @@
 # install is cached per platform, so only the first run (or a change to that script) pays for the build.
 #   SHA256SUMS                                   sha256 of every package above
 #   SHA256SUMS.sigstore.json                     Sigstore bundle signing SHA256SUMS (offline verification)
-# Chain of custody (README "Verifying a download"): each package gets a GitHub artifact attestation, i.e.
+# Chain of custody (docs/install.md "Is the download genuine?"): each package gets a GitHub artifact attestation, i.e.
 # Sigstore-signed SLSA build provenance binding its sha256 to this workflow, commit and tag. The release stays
 # a draft until every platform is uploaded; the checksums job then hashes what the release actually holds,
 # attests SHA256SUMS too and only then publishes, so a release is never public half-filled or with unsigned

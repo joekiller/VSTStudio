@@ -133,7 +133,7 @@ is showing, and the bundled clip is labelled **Sample video (Locust Ave, 2016)**
 ![Connect the camera](images/studio/03-source.jpg)
 
 The command line takes the same sources: `--input 0` opens the first camera, `--input picam` the Raspberry Pi camera
-(README, [Raspberry Pi camera](../README.md#raspberry-pi-camera)), and `--input rtsp://...` a stream.
+([Raspberry Pi cameras](command-line.md#raspberry-pi-cameras)), and `--input rtsp://...` a stream.
 
 ### 4 Mark your street
 
@@ -422,7 +422,7 @@ lands in the filmstrip with a snapshot, and the side panel keeps counts and the 
 
 Each run writes the usual outputs under the data folder: `Stats/stats_<name>.csv`, a highlights video in
 `HiLites/` (if enabled), and a short clip per vehicle in `Clips/`. Every csv row has a Timestamp: when the vehicle
-passed, from this computer's clock for a camera or stream (see [the stats csv](../README.md#the-stats-csv)).
+passed, from this computer's clock for a camera or stream (see [the stats csv](output-files.md#the-stats-csv)).
 
 A camera or stream runs until you press Stop. If the picture drops out, the badge turns to **RECONNECTING…** and the
 tracker reopens the source after 1, 2, 4, 8 and 16 s, then every 30 s until it's back; Stop works during the wait.
@@ -696,7 +696,7 @@ holds the 2016 results for it, by Studio or the command-line tool, writes `stats
 
 | | |
 |---|---|
-| Settings (`VST.cfg`) | the file shown on the Connect the camera page; by default the per-user config (see the README) |
+| Settings (`VST.cfg`) | the file shown on the Connect the camera page; by default the per-user config ([where settings and data live](install.md#where-settings-and-data-live)) |
 | App preferences | `vst-studio.ini` in the same config folder: speed limit, site planner inputs and where they came from, the last source and page, recent sources, pairing token, the 2016 setup found and picked up |
 | 2016 settings | `VST-2016.cfg` in the same config folder: Studio's copy of a 2016 `VST.cfg` (see [Coming from the 2016 VideoSpeedTracker](#coming-from-the-2016-videospeedtracker)) |
 | Calibration history | `calibration-history.csv` in the same config folder: every calibration and check, appended (see [Calibration history](#calibration-history)) |

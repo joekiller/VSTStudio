@@ -1,5 +1,7 @@
 # Upstream issues, pull requests and forks
 
+Part of the project's [history](README.md).
+
 A review, done in October 2026, of everything filed against the original project
 [pfr/VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker) and of the changes in its forks, checked against this
 fork. "Fixed here" means the fix is in this repository. Where a report had no logs, the cause given is the most likely
@@ -9,7 +11,7 @@ one found in the 2016 code, and the entry says so.
 
 The original project is BSD 3-Clause. Every source file carries the full notice (copyright Paul Reynolds, Charlottesville,
 2016), and the original README says "BSD 3-Clause" under License. The original repository has no separate LICENSE file;
-[LICENSE](../LICENSE) here is that same header text.
+[LICENSE](../../LICENSE) here is that same header text.
 
 ## Issues
 
@@ -17,7 +19,7 @@ The original project is BSD 3-Clause. Every source file carries the full notice 
 |---|---|---|
 | [1](https://github.com/pfr/VideoSpeedTracker/issues/1) | Get code into repo, write external docs | Done upstream in 2016. |
 | [3](https://github.com/pfr/VideoSpeedTracker/issues/3) | The Win7-built exe with OpenCV 2.4.11 DLLs fails on Windows 8.1 / 10 (screenshots only, no error text) | The 2016 exe and DLLs are gone. The release workflow builds a Windows x64 zip with MSVC and a statically linked OpenCV 5, and ships OpenCV's FFmpeg plugin DLL and the MSVC runtime DLLs alongside the exes. |
-| [13](https://github.com/pfr/VideoSpeedTracker/issues/13) | Where does the speed limit in the speed formula come from? | Never answered upstream. The 2016 formula hard-coded 25 MPH as the calibration speed, so the speed-limit prompt only changed colors. **Fixed here:** new `CalibrationSpeed` key (default 25), documented under "Calibrating speed" in the README. |
+| [13](https://github.com/pfr/VideoSpeedTracker/issues/13) | Where does the speed limit in the speed formula come from? | Never answered upstream. The 2016 formula hard-coded 25 MPH as the calibration speed, so the speed-limit prompt only changed colors. **Fixed here:** new `CalibrationSpeed` key (default 25), documented in the [configuration reference](../config-reference.md#calibration). |
 | [14](https://github.com/pfr/VideoSpeedTracker/issues/14) | Logitech C920 video: the program closes with no error, VS build has link errors, and an H.264 1280x720 file crashes after "Trying to capture" | Four separate problems. (1) Only exactly 1280x720 at exactly 30.000 fps was accepted, and the "Bailing" message had no newline, so the window closed before it showed. **Fixed here:** any size is scaled to 1280x720 and any frame rate is handled by `CalibrationFPS`. (2) There was no VS project, so the build failed at link time: the CMake build replaced it. (3) The H.264 crash is not reproducible without the file. Most likely cause: the loop stopped at `CAP_PROP_FRAME_COUNT - 2`, which is only an estimate for many H.264 files, so it could read empty frames and crash in `cvtColor`. **Fixed here:** the loop reads until the video ends. (4) Errors now go to stderr with the values involved, and the exit status is non-zero. |
 | [15](https://github.com/pfr/VideoSpeedTracker/issues/15) | Has anyone ported this to Mac? | Yes: the CMake build (PR #1) and the macOS arm64 release package. |
 | [16](https://github.com/pfr/VideoSpeedTracker/issues/16) | "App just hangs, Windows 10" (screenshot only) | Most likely cause: with no arguments, VST ran `dir <dataPathPrefix>\IPCam` and asked y/n about each folder, and it looped forever when the folder was missing or empty. The sample config points at `g:\locustdata`, so on most machines it was missing. **Fixed here:** the folder is listed with `std::filesystem` and VST exits with a message saying what to create. VST also exits instead of re-prompting when stdin closes. |

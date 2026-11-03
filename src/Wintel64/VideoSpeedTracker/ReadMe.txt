@@ -4,7 +4,7 @@ VideoSpeedTracker sources
 The Visual Studio AppWizard notes that used to be here described project files
 (VideoSpeedTracker.vcxproj, StdAfx.h/.cpp) that were never committed. The
 programs now build with CMake from the top-level CMakeLists.txt; see
-"Building from source" in README.md.
+docs/building.md.
 
 videoSpeedTracker.cpp   main(): command-line options, interactive setup, the
                         frame-differencing loop, csv/trace/highlights output

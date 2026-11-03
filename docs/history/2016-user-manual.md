@@ -1,3 +1,17 @@
+# Video Speed Tracker: Overview and User Manual (2016)
+
+> **This is a historical document.** It is Paul Reynolds' original 2016 manual for the Windows 7 / OpenCV 2.4.11
+> release of VST, kept as he wrote it (only its Markdown was repaired, in 2026, so it renders). Nothing here is needed
+> to use VideoSpeedTracker today, and several of its instructions no longer apply: there are no Windows-only
+> executables or OpenCV DLLs to install, `VST.cfg` is forgiving and mostly written for you, and there is a guided
+> desktop app. For the current software start with [Getting started](../getting-started.md); every `VST.cfg` key is
+> in the [configuration reference](../config-reference.md). The story behind this manual is in
+> [Where VideoSpeedTracker came from](README.md).
+>
+> It is still the best explanation of *how the tracker thinks*: the analysis box, hubcap lines, predictive tracking
+> and dead reckoning past oncoming cars described below are the same ideas the tracker uses now. A PDF of the same
+> text is [2016-user-manual-v3.pdf](2016-user-manual-v3.pdf).
+
 ## Overview
 The Video Speed Tracker (VST) is an open source, technically sound,
 vehicle speed measuring system that can track bidirectional traffic, one
@@ -7,16 +21,6 @@ typical home computer, VST requires video from an HD camera, many of
 which can be purchased for less than $100 (e.g. the Foscam Fi9103EP,
 power over Ethernet, outdoor camera). If you plan to modify and
 recompile VST then you need to have OpenCV c 2.4.11 installed.
-
-*Note:* this manual describes the 2016 Windows release. This fork,
-<https://github.com/joekiller/VideoSpeedTracker>, builds with CMake
-against OpenCV 4 or 5 on Linux, macOS and Windows, and publishes
-prebuilt packages; see the [README](../README.md#downloads). Notes like
-this one mark where the current build differs from the original text.
-If you are setting up a camera for the first time, start with
-[Getting started](getting-started.md) and the desktop app,
-[VST Studio](vst-studio.md), which do the setup below with a guided
-walk-through instead of editing `VST.cfg` by hand.
 
 The VST software package comprises two components: 1) the **Video Speed
 Tracker** and 2) a **final highlights video processor**. The Video Speed
@@ -30,13 +34,6 @@ passing traffic. VST outputs:
     profile area and an estimated speed. Profile area can be handy for
     separating buses and large trucks from other vehicles. Estimated
     speed entries support speed data analysis of any sort imaginable.
-
-    *Note:* in the current build each entry also ends with a
-    Timestamp, the date and time the vehicle passed, with its UTC
-    offset, and then its speed trend (speed in and out of the zone,
-    acceleration, whether it was slowing down, steady or speeding up,
-    and its speed 20 ft further on). The columns are described in the
-    [README](../README.md#the-stats-csv).
 
 2.  A trace (debug) file, if you request it. This file contains copious
     information for determining how the tracker derived a final speed
@@ -72,14 +69,6 @@ through to select the directory “2016 02 05”, located in
 files from February 5th, 2016. Next I selected the specific file
 `manual_20160205_115810.avi` for processing.
 
-*Note:* the current build lists the folders and then the videos (`.avi`,
-`.mp4`, `.mkv`, `.mov` and other common types) as numbered choices
-instead of asking y/n about each one; type `*` at the video prompt to
-process the whole folder. Outputs are written to `Stats`, `Trace` and
-`HiLites` under the path prefix (created if missing), and highlights
-videos are `.mp4`. To skip the prompts entirely, use the command-line
-options listed by `VideoSpeedTracker --help`.
-
 Next up is the question asking whether the *Analysis Box* (yellow
 region, as depicted in figure 2) and related components are OK.
 Currently, if you answer that the analysis box, etc. are not OK, the
@@ -89,11 +78,6 @@ VST.cfg).
 ![Command Line Setup][Fig1]
 
 **Figure 1.**  Command Line Setup.
-
-*Note:* the config file is no longer necessarily the one next to the
-executable. Without `--config`, VST reads `VST.cfg` from the working
-directory, else a per-user copy that the first run creates; it prints
-which one it used. See the [README](../README.md#where-config-and-data-live).
 
 ![Yellow Analysis Box and Other Markings][Fig2]
 
@@ -124,14 +108,6 @@ int (0.5 + ( (observed vehicle frame count) / (calibration vehicle frame count))
 ```
 Further analysis is performed in VST to home in on the likely actual
 speed but that analysis needn’t be discussed here.
-
-*Note:* the formula above has the ratio upside down; a vehicle that
-takes more frames is slower. The code computes
-`CalibrationSpeed × CalibrationFrames × (video fps / CalibrationFPS) / (observed frame count)`,
-rounded to the nearest whole MPH, where `CalibrationSpeed` is the speed
-the calibration vehicle drove (the 2016 code hard-coded 25 MPH) rather
-than the speed limit. Video at frame rates other than 30 fps is
-supported. See [Calibrating speed](../README.md#calibrating-speed).
 
 VST currently supports the description of one vertical obstruction in
 the foreground. In Figure 2 you can see the maple tree in my front yard,
@@ -301,13 +277,6 @@ behavior:
     times slower up to a delay upper limit of 1250. Consequently the
     execution speed of VST goes down accordingly.
 
-5.  Esc stops processing and exits.
-
-*Note:* the delay is in milliseconds per frame pair while a vehicle is
-in view. It now starts at 50 (it was 1250), so `s` steps it to 250 and
-then 1250, and `f` steps it back down to 10. With `--headless` there are
-no windows and no key commands; VST runs as fast as the CPU allows.
-
 ## Producing a Highlights Video File in VST
 You’re given an option to have a highlights video file produced as a
 byproduct of the execution of VST. In Fig. 1 the user said “no” to such
@@ -336,11 +305,6 @@ list and select the codec you choose to use and select OK. The VST will
 start up, and you will see the two new windows depicted in Figure 3.
 Sorry about the pop-up box. OpenCV 2.4.11 has a small bug that prevents
 specification of an h264 codec in the open file operation.
-
-*Note:* the current build doesn't show this pop-up. Highlights videos
-are written as MPEG-4 (`mp4v`) `.mp4` files, named
-`HiLites/Hilites_<video or folder name>.mp4` in interactive mode or
-given with `--highlights PATH`.
 
 ## Further Notes on the VST
 Every once in a while a horizontal red line will pop up through the
@@ -404,8 +368,7 @@ to ensure no speeding mistracked vehicle is ever presented as having
 been tracked correctly.
 
 When the FHVD is started it lists the avi files found in the HiLites
-subdirectory, one-by-one, as can be seen in Figure 10 (the current build
-lists `.avi` and `.mp4` files). You select the
+subdirectory, one-by-one, as can be seen in Figure 10. You select the
 file to be edited, and then confirm the cropping box is acceptable, see
 figure 11. Note the cropping box is 640 x 360 pixels. This smaller size
 is used to make posts of the output file to the web more easily viewed.
@@ -415,12 +378,6 @@ Next, the codec selection popup will occur, as seen in figure 9. The
 codec you choose will be used to encode the edited highlights video that
 FHVD outputs. Once you’ve chosen the codec (h264 highly recommended),
 the editing process will begin.
-
-*Note:* the current build has no codec pop-up; the edited video is
-written as MPEG-4 (`mp4v`). The crop position comes from `CropLeft` and
-`CropTop` in ProcessHiLites.cfg, and the program is named
-`ProcessHiLites`. It also takes `--config`, `--input` and `--output`
-(see `ProcessHiLites --help`).
 
 ![FHVD Input File Selection][Fig10]
 
@@ -453,11 +410,6 @@ FHVD’s output file has the prefix “forPost” and a suffix taken from the
 original video file processed by VST. The forPost file is written to the
 subdirectory `<path prefix>\HiLites\forPosting`.
 
-*Note:* more precisely, it goes to `forPosting/forPost_<input name>` in
-the folder the input video came from (created if missing), which is
-`<path prefix>/HiLites/forPosting` when the file was picked from the
-list. `--output PATH` overrides it.
-
 ## Current Development Environment and Implementation
 Both VST and FHVD have been developed in M.S. Visual Studio 2013, C++,
 using the OpenCV C++ API on a Win7, 64 bit platform. I have made every
@@ -467,22 +419,11 @@ setup() in trafficReports.cpp, where I make sys() calls to get the file
 names in a directory. You’ll probably find some other dependencies as
 well.
 
-*Note:* those dependencies are gone. The main file is now
-`videoSpeedTracker.cpp`, directories are listed with `std::filesystem`,
-and the same sources build with CMake (C++17) on Linux, macOS and
-Windows. The Visual Studio project was never in the repository. See
-[Building from source](../README.md#building-from-source).
-
 You also need to have OpenCV 2.4.11 installed. You can find the download
 you need here: <http://opencv.org/downloads.html>. I first tried using the then
 relatively new 3.x version and ran into too many bugs. Your mileage may
 vary. Once I got the installation right, OpenCV 2.4.11 has worked
 without noticeable bugs (except the codec pop-up issue noted above).
-
-*Note:* OpenCV 2.4 and 3.x are no longer supported; CMake requires
-OpenCV 4 or newer. Release packages use OpenCV 5.0.0, built from source
-and linked statically on every platform; the macOS app also carries a
-small LGPL FFmpeg build for video files and streams.
 
 ## Installing Executables
 Executables that can run on Win7tel64 platforms can be found in the repo
@@ -509,15 +450,6 @@ executables running:
 
 -   Execute!
 
-*Note:* the 2016 Win7 executables and OpenCV DLLs have been removed from
-`bin/` (they remain in the git history). `bin/` now holds only the two
-sample config files. Install a package from the
-[releases page](https://github.com/joekiller/VideoSpeedTracker/releases)
-instead (see the [README](../README.md#downloads)); OpenCV is built in
-on Linux and Windows, so no `PATH` changes are needed. On first run each
-program creates its own config and the data folders in your user
-profile, so the folder and config steps above are optional.
-
 
 ## Set-up Checklist
 1.  You really want 100 feet or more of open view (a maple tree trunk in
@@ -540,11 +472,6 @@ profile, so the folder and config steps above are optional.
     including through the infamous Middle Atlantic January
     2016 Snowzilla.
 
-    *Note:* the current build accepts any resolution (frames are scaled
-    to the 1280 x 720 coordinates VST.cfg uses) and any frame rate
-    (speeds are scaled by `CalibrationFPS`). 720p at 25–30 fps is still
-    the target.
-
 3.  Aim the camera well. Look at Figure 2. Aim the camera so that the
     street passes left to right about half way up the overall image.
     This should minimize the effects of lens distortion. A vehicle
@@ -561,10 +488,6 @@ profile, so the folder and config steps above are optional.
     successful compile. If you’re executing a provided executable you’ll
     still need OpenCV 2.4.11 runtime libraries (dll’s in Windows) before
     you can execute successfully.
-
-    *Note:* not any more; see [Current Development Environment and
-    Implementation](#current-development-environment-and-implementation)
-    and [Installing Executables](#installing-executables).
 
 5.  Set critical one time setup values in VST.cfg. These values are
     described in the [appendix](#appendix).
@@ -593,57 +516,45 @@ the IPCam directory, I create subdirectories with syntax yyyymmdd (e.g.
 ## Appendix
 ### Objects used in VST that need to be set in VST.cfg
 VST.cfg has been created to maximize the chances of being able to
-distribute an executable (i.e. not requiring a recompile). Each setting
-is one line:
+distribute an executable (i.e. not requiring a recompile). VST.cfg
+syntax is a little fragile. Currently you can’t have any blank lines,
+comment only lines, or extra lines at the end (Github issue to make
+VST.cfg more forgiving). Each line has the syntax:
 
 ```
-<known object name> = <value>   # optional comment
+<known object name> = <value> #comment
 ```
 
-*Note:* the 2016 parser required every key, in the order below, with no
-blank or comment lines. The current parser accepts keys in any order and
-in any letter case, blank lines, lines that are only a `#` comment, CRLF
-or LF line endings, and a trailing newline. A key that is left out keeps
-its built-in default. A misspelled key or an unreadable value stops VST
-with the file name, line number and the list of known keys.
-
-All pixel values are in 1280x720 frame coordinates. Video of another
-size is scaled to 1280x720 before analysis, so a config written against
-a scaled screenshot works unchanged.
+Actual comments at the ends of lines can be omitted, but not the `#`.
+My parser looks for it. Also, the known object names must appear in the
+order they appear in the distributed VST.cfg file, and as they appear in
+the following table. Spaces are allowed on either side of the “=”.
 
 | Known object | Purpose |
 |---|---|
-| `dataPathPrefix` | Needs to be set to the root directory containing data directories for VST.  The required directories in this root are:  “IPCam”, “Stats”, “Trace” and “HiLites”.  HiLites should have a subdirectory “forPosting”.  Note: on Windows, do not place any double back slashes in the path name.  They’re not needed here.  (Now: `Stats`, `Trace` and `HiLites` are created if missing, and a per-user config created on first run points here at a data folder it fills with all of them.  Quotes around the path are optional.) |
+| `dataPathPrefix` | Needs to be set to the root directory containing data directories for VST.  The required directories in this root are:  “IPCam”, “Stats”, “Trace” and “HiLites”.  HiLites should have a subdirectory “forPosting”.  Note: on Windows, do not place any double back slashes in the path name.  They’re not needed here. |
 | `L2RDirection` | String capturing compass direction of L2R vehicles. |
 | `R2LDirection` | String capturing compass direction of R2L vehicles. |
-| `LegalDirection` | Optional; `Both` (the default), `L2R`, `R2L`, or the compass label of one direction, such as `NE`.  On a one-way street, set it to the direction traffic is allowed to go.  Vehicles going the other way are still timed and logged, and are called out as wrong-way: the command line prints a `WRONG WAY` line for each, and VST Studio, the street report and the phone companion count them.  In VST Studio it is **Your street** in step 4, Mark your street. |
-| `obstruction` | Two element vector (`obstruction[]` in the code) holding x coords of left and right side of one obstruction.  Vehicle motion code will dead reckon front bumper between these x values inside analysis box. If you have no obstructions (e.g. a maple tree between camera and street) set second value no larger than the first, e.g. `[0,0]`.  If you have more than one obstruction, you'll need to make obstruction[] two dimensional and change checks in vehicle dynamics to loop over multiple obstructions.  Syntax of RHS value pair is `[<left> , <right>]` |
+| `obstruction[]` | Two element vector holding x coords of left and right side of one obstruction.  Vehicle motion code will dead reckon front bumper between these x values inside analysis box. If you have no obstructions (e.g. a maple tree between camera and street) set second value smaller than first.  If you have more than one obstruction, you'll need to make obstruction[] two dimensional and change checks in vehicle dynamics to loop over multiple obstructions.  Syntax of RHS value pair is `[<left> , <right>]` |
 | `AnalysisBoxLeft` | x coord of speed analysis box.  Note the origin in OpenCV is top left.  X values go right, Y values go down. |
 | `AnalysisBoxTop` | y coord of top of speed analysis box, with top left as origin. Note the origin in OpenCV is top left.  X values go right, Y values go down. |
 | `AnalysisBoxWidth` | horizontal width of speed analysis box.  Note the origin in OpenCV is top left.  X values go right, Y values go down. |
-| `AnalysisBoxHeight` | vertical height of speed analysis box as measured down from AnalysisBoxTop.  Note the origin in OpenCV is top left.  X values go right, Y values go down.  VST checks that the box fits in the frame: `AnalysisBoxLeft + AnalysisBoxWidth <= 1280` and `AnalysisBoxTop + AnalysisBoxHeight <= 720`. |
-| `speedLineLeft` | x coord of left end of speed measuring zone (left vertical white line), relative to `AnalysisBoxLeft`. |
-| `speedLineRight` | x coord of right end of speed measuring zone (right vertical white line), relative to `AnalysisBoxLeft`.  VST checks `0 <= speedLineLeft < speedLineRight <= AnalysisBoxWidth`. |
+| `AnalysisBoxHeight` | vertical height of speed analysis box as measured down from AnalysisBoxTop.  Note the origin in OpenCV is top left.  X values go right, Y values go down. |
+| `speedLineLeft` | x coord of left end of speed measuring zone (left vertical white line). |
+| `speedLineRight` | x coord of right end of speed measuring zone (right vertical white line). |
 | `maxL2RDistOnEntry` | Used to determine how aggressively tracker should look out in front of *entering* vehicle to ultimately be able to lock onto front bumper for L2R vehicle.  Units are pixels. |
 | `maxR2LDistOnEntry` | Ditto for R2L vehicle.  Units are pixels. |
 | `entryLookBack` | Used to determine how far back to look for rear bumper of entering vehicle. Units are pixels.  Making this value too large can create large tracked area (rearward extent of green box) behind entering vehicle that can cause excessive dead-reckoning of passing, opposite direction vehicles.  Large vehicles may not have their rear bumpers found when entering.  Often rear bumper tracker will slowly find actual rear bumper of large vehicles after front bumper has entered beyond entryLookBack pixels.  Still fails occasionally on UPS trucks and long single color panel trucks.  An improved solution, though low priority, is needed. |
 | `obstruction_extent` | Even after a vehicle has passed an obstruction it needs additional span to show up as a blob past the obstruction in frame differencing operation. |
-| `largeVehicleArea` | When choosing vehicles for the highlights video, this value is consulted to determine if the vehicle's (normalized) area exceeds it.  All computed areas are normalized so that buses and large trucks tend to be most of the vehicles over 100, the value in the sample VST.cfg (the built-in default, used if the key is left out, is 109).  Your value may vary. |
-| `CalibrationFramesL2R` | Turn your camera on in record mode and drive a vehicle left to right through the scene at a steady, known speed (ideally the speed limit).  Set this to the number of frames it took to cross the speed measuring zone, and set `CalibrationSpeed` to the speed you drove.  If you couldn't hold `CalibrationSpeed` exactly, use `(<actual speed>/<CalibrationSpeed>) * <frames counted>`.  Several passes with several vehicles give the best calibration. |
-| `CalibrationFramesR2L` | Same process as for L2R, but R2L.  Note that due to parallax, the R2L (farther away) lane will require more frames to travel through the speed measuring zone at a given speed than will be seen for L2R calibration.  My values are L2R: 35 frames, and R2L: 40 frames for about 50 feet of speed measuring zone at 25 MPH. |
-| `CalibrationSpeed` | Speed (MPH) the calibration vehicle drove when the two `CalibrationFrames` values were counted.  Default 25.  Every measured speed is `CalibrationSpeed * CalibrationFrames / frames taken`, so this, not the speed limit, sets the scale.  The speed limit (`--speed-limit` or the interactive prompt) only picks the green/yellow/red colors. |
-| `CalibrationFPS` | Frame rate of the video the `CalibrationFrames` were counted in.  Default 30.  Video recorded at another rate is measured correctly: the calibration frame counts are scaled by `<video fps> / CalibrationFPS`.  Below about 20 fps vehicles move too far between frames for reliable tracking. |
+| `largeVehicleArea` | When choosing vehicles for the highlights video, this value is consulted to determine if the vehicle's (normalized) area exceeds it.  All computed areas are normalized so that buses and large trucks tend to be most of the vehicles over 100, which is this variable's default value.  Your value may vary. |
+| `CalibrationFramesL2R` | Turn your camera on in record mode and drive a vehicle left to right through the scene.  Try to go 25MPH.  Come back home and set this value to `(<speed limit>/<actual speed>) * <number of frames it took for you to drive though the zone in which you'll be measuring speed.>`.  It would be better to drive through multiple times with multiple vehicles to get best calibration. |
+| `CalibrationFramesR2L` | Same as process for L2R, but R2L.  Note that due to parallax, the R2L (farther away) lane will require more frames to travel through the speed measuring zone at a given speed (e.g. `<speed limit>`) than will be seen for L2R calibration.  My values are L2R: 40 frames, and R2L: 36 frames for about 50 feet of speed measuring zone and 25 MPH speed limit. |
 | `SENSITIVITY_VALUE` | Sensitivity value for the OpenCV absdiff funtion.  It probably doesn't need to be tweaked, but it is a fine tuning parameter for the speed tracker.  I set it early on and forgot it. |
 | `BLUR_SIZE` | Used to smooth the intensity image output from absdiff() function. Again, I set it once and didn't need to tweak it. |
 | `SLOP` | Margin of error allowed (units are pixels) in predictive tracker when trying to determine if two opposite direction vehicles are overlapping. |
-| `R2LStreetY` | y coordinate (relative to `AnalysisBoxTop`, between 1 and `AnalysisBoxHeight`) in the analysis box for describing R2L vehicle hubcap line.  This is where the line meets the analysis box's left edge; see `R2LStreetYRight` for a street at an angle. |
-| `R2LStreetYRight`, `L2RStreetYRight` | Optional, default 0 (level).  Where each hubcap line meets the analysis box's right edge, for a street that runs at an angle across the picture (a camera aimed partly along it).  Each direction's cars are looked for only above its line, so a level line on a slanted street cuts cars off at one end and lets the sidewalk in at the other.  VST Studio sets them when you drag an end of a lane line. |
-| `streetEdge` | Optional, `[left, right]` like the hubcap lines, default `[0,0]` (off).  A second line along the street (the curb, a lane stripe, the tops of parked cars).  Lines that are parallel on the street meet in the picture at its vanishing point, and from that VST knows how the street recedes: with `subFrameTiming` it measures each front bumper's position along the ground rather than in pixels before fitting its line, so a car at a steady speed that grows on screen as it approaches still fits a straight line.  Parallel to the lane line, it changes nothing.  Whole-frame timing doesn't need it (calibration was timed between the same two lines).  Refused when it crosses a lane line inside the box or makes the far end more than 3 times as far away.  Recorded in the run manifest's config.  VST Studio: **The street gets farther away across the picture** in the Lane card. |
-| `L2RStreetY` | y coordinate (relative to `AnalysisBoxTop`, between 1 and `AnalysisBoxHeight`) in the analysis box for describing L2R vehicle hubcap line.  As `R2LStreetY`, for L2R vehicles. |
+| `R2LStreetY` | y coordinate in the analysis box for describing R2L vehicle hubcap line.  Currently a constant because I have a flat, non-sloping street.  Slopes, bumps and/or dips could be described by changing R2LStreetY to a function of x, where R2LStreetY() describes an arbitrary polynomial you provide. |
+| `L2RStreetY` | y coordinate in the analysis box for describing L2R vehicle hubcap line.  Currently a constant because I have a flat, non-sloping street.  Slopes, bumps and/or dips could be described by changing L2RStreetY to a function of x, where L2RStreetY() describes an arbitrary polynomial you provide. |
 | `nextHeight` | The value of this variable assumed before an actual vehicle height estimation can be conducted is a constant in the code.  You probably won't have to change it in your setup, but you might.  Once three or more differencing operation images are produced for a vehicle entering the scene, height will be calculated from data. |
-| `minLoggedSpeed` | Optional, in MPH; the default is 18, which was a constant in the code before v1.2.  Vehicles timed slower than this (walkers, cyclists, cars turning in) get no row in the stats csv.  They are counted as `belowMinSpeed` in the run manifest (`run_<name>.json`, see the README) instead.  0 logs every timed vehicle.  In VST Studio it is **Slowest logged** under Zones → Detection tuning. |
-| `subFrameTiming` | Optional, 0 (the default) or 1.  Set it to 1 for a short view, where only about 14 to 25 ft of street is visible and a car fills most of the frame.  Whole frames are too coarse there: at 30 fps a car at 25 MPH crosses a 16 ft zone in about 13 frames, and VST works in frame pairs, so one pair is 15% of the speed.  With 1 the speed comes instead from a straight line fitted through the front bumper positions seen between the speed lines (and the one either side), which times the crossing to a fraction of a frame; a vehicle whose positions stray from the line (two merged, a track picked up again) gets no speed.  The tracker's built-in pixel margins, tuned for the 2016 sample where `maxL2RDistOnEntry` is 75, are scaled by `maxL2RDistOnEntry` / 75 (and R2L likewise), so set those to how far a car moves in two frames at about 70 MPH (in a 20 ft view at 30 fps, about 440 pixels), and `entryLookBack` to about a car length in pixels.  A vehicle first seen already past the first speed line still counts if it is touching the edge it entered from, so the speed lines can sit close to the edges of the analysis box; the zone does not have to leave room for a whole car.  The csv's frame columns stay whole-frame counts.  Recorded in the run manifest's config. |
-| `levelDegrees` | Optional, -15 to 15, default 0.  For a camera that isn't mounted level: every frame is turned this many degrees about its centre (positive is counter-clockwise) before anything else sees it, so each lane runs straight across the picture and stays on its hubcap line (`L2RStreetY`, `R2LStreetY`).  The corners the turn uncovers are black.  Set it before the analysis box, lines and calibration, since a new angle moves the street under them.  VST Studio's **Level the picture** sets it from a line laid along the curb.  Recorded in the run manifest's config. |
 
 [Fig1]: images/Fig01.jpg
 [Fig2]: images/Fig02.jpg
