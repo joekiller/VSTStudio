@@ -327,7 +327,10 @@ grep -q 'Community traffic study. Estimated speeds, ±' "$OUT/body" && pass "it 
 grep -q "Vehicles logged</dt><dd class='num'>$EXPECTED<" "$OUT/body" && pass "it counts $EXPECTED vehicles" \
   || fail "the report doesn't count $EXPECTED vehicles: $(grep -o "Vehicles logged</dt><dd[^<]*<" "$OUT/body")"
 grep -qE 'https?://' "$OUT/body" && fail "the report references an external URL" || pass "the report is self-contained"
-ls "$OUT"/data/videospeedtracker/Reports/report_*.html > /dev/null 2>&1 && pass "a copy is saved in Reports/" || fail "no report in the data folder's Reports/"
+# The sample keeps its results, and so a report made on it, in the data folder's Sample/, away from the user's own street.
+ls "$OUT"/data/videospeedtracker/Sample/Reports/report_*.html > /dev/null 2>&1 && pass "a copy is saved in Sample/Reports/" || fail "no report in the data folder's Sample/Reports/"
+ls "$OUT"/data/videospeedtracker/Sample/Stats/stats_*.csv > /dev/null 2>&1 && pass "the sample's results are in Sample/Stats/" || fail "no stats csv in Sample/Stats/"
+ls "$OUT"/data/videospeedtracker/Stats/stats_*.csv > /dev/null 2>&1 && fail "the sample's results leaked into the user's own Stats/" || pass "the user's own Stats/ holds none of the sample's runs"
 
 req GET "/api/vehicles/$FIRST"
 expect 200 "GET /api/vehicles/$FIRST"

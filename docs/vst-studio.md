@@ -659,12 +659,46 @@ be open at once. The API is described in [companion-api.md](companion-api.md).
 
 ![Companion](images/studio/08-companion.jpg)
 
+## Coming from the 2016 VideoSpeedTracker
+
+VST Studio grew out of Paul Reynolds' 2016 VideoSpeedTracker, and it recognizes a setup made with that program and
+works on top of it without changing it.
+
+The 2016 program kept everything in two places: `VST.cfg` beside the program (exactly 23 `key = value` lines in a fixed
+order; its reader stops at anything else) with `ProcessHiLites.cfg`, and the data folder that `VST.cfg` names
+(`g:\locustdata` as shipped), holding `IPCam\<yyyymmdd>\manual_*.avi` recordings, the `directories.txt` and
+`files.txt` listings each run wrote, `stats\stats_*.csv`, `trace\` and `HiLites\`. At launch, Studio looks for those
+in the folder it was started from, the home folder and its Desktop, Documents, Downloads and Visual Studio project
+folders, every drive (Windows) or mounted volume (macOS, Linux), and any folder named `VideoSpeedTracker*` or
+`locustdata` in those. A data folder whose drive letter doesn't exist any more (a disk moved to a Mac, say) is found by
+its name. If the setup isn't found by itself, **Find my 2016 setup** at the bottom of What you need points Studio at
+the folder.
+
+When it finds one, a welcome says what is there: the settings and their calibration, how many recordings over which
+days, and how many vehicles the results files hold. The Locust Avenue setup itself, recognized by its NW/SE headings or
+its `locustdata` folder and with recordings or results in it, is greeted as its creator's. **Pick up where I left off**:
+
+- copies `VST.cfg` to `VST-2016.cfg` in the config folder, with its comments, a note saying where it came from, a blank
+  `dataPathPrefix` (new results go to Studio's own data folder) and the 25 mph / 30 fps calibration the 2016 program
+  assumed. Its calibration stands ("calibrated, not checked"), and its zones count as marked for the 2016 camera;
+- copies each 2016 results file into `Stats/` as `stats_2016_<name>.csv`, keeping its date, so Results lists them
+  as **2016 VideoSpeedTracker** runs beside new ones, with each vehicle's time worked out from the recording's start
+  and its frame;
+- opens the latest recording from where it is.
+
+Nothing in the 2016 setup is written, moved or deleted, so the 2016 program keeps working exactly as before. A 2016
+`VST.cfg` that Studio opens (started from that folder, or picked by hand) is read only: the side rail says
+"2016, read only", and the first change carries on in `VST-2016.cfg`. A re-run of a 2016 recording into a folder that
+holds the 2016 results for it, by Studio or the command-line tool, writes `stats_<name>_rerun.csv` beside them.
+**Not now** closes the welcome for good; What you need keeps a card for the setup.
+
 ## Where things are saved
 
 | | |
 |---|---|
 | Settings (`VST.cfg`) | the file shown on the Connect the camera page; by default the per-user config ([where settings and data live](install.md#where-settings-and-data-live)) |
-| App preferences | `vst-studio.ini` in the same config folder: speed limit, site planner inputs and where they came from, the last source and page, recent sources, pairing token |
+| App preferences | `vst-studio.ini` in the same config folder: speed limit, site planner inputs and where they came from, the last source and page, recent sources, pairing token, the 2016 setup found and picked up |
+| 2016 settings | `VST-2016.cfg` in the same config folder: Studio's copy of a 2016 `VST.cfg` (see [Coming from the 2016 VideoSpeedTracker](#coming-from-the-2016-videospeedtracker)) |
 | Calibration history | `calibration-history.csv` in the same config folder: every calibration and check, appended (see [Calibration history](#calibration-history)) |
 | Results | the data folder (`dataPathPrefix`, or the per-user data folder when blank): `Stats/` (csv and run manifests), `HiLites/`, `Clips/`, `Trace/`, street reports in `Reports/`, archived datasets in `Archive/`, published datasets in `Published/`, and the calibration sets in `Stats/calibration-sets.json` |
 

@@ -1184,9 +1184,12 @@ void App::pageGuide() {
 		ImGui::PushFont(fonts.title);
 		ImGui::TextUnformatted("Measure the traffic on your street");
 		ImGui::PopFont();
+		sampleTryCard(avail);   // Sample.cpp: see it work first, before any setup
 		lead("VST times every car that passes between two lines on your video and works out its speed. Setting it up takes "
 			"about half an hour, in five steps. Here is what each one needs. Nothing leaves your computer. Whatever camera you have is a fine "
 			"place to start, and every step has a way through if something isn't to hand yet.");
+		// A 2016 VideoSpeedTracker setup found on this computer (Legacy.cpp): its status and the way to pick it up.
+		if (legacy.found()) legacyCard(avail);
 		// One card per later step, in step order, each naming its step, so the list reads as the plan.
 		float cw = (avail - px(48)) / 4, ch = px(222);
 		gearCard("g2", ICON_LOCATE, c::accent2, "A window on the street", "Step 2 · Pick your spot",
@@ -1226,6 +1229,7 @@ void App::pageGuide() {
 		ImGui::PopTextWrapPos();
 		ImGui::EndGroup();
 		endCard();
+		if (!legacy.found()) legacyCard(avail);   // "Used the original 2016 VideoSpeedTracker? Find my 2016 setup"
 	}
 	else {
 		lead("Where will the camera go, and what can it measure from there? Find your window on the map (or pick the closest kind of street), "

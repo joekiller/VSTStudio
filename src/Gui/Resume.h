@@ -47,8 +47,8 @@ struct SavedRun {
 // there (health.csv, exports) are not runs and are left out.  Empty when the folder is missing.
 std::vector<SavedRun> savedRuns(const std::string& dataDir);
 
-// A run's name for people: "Camera 0 · 2026-11-01 13:30", "Pi camera 1 · …", "Stream · …", or the name itself for a
-// video file's run.
+// A run's name for people: "Camera 0 · 2026-11-01 13:30", "Pi camera 1 · …", "Stream · …", "2016 VideoSpeedTracker ·
+// 2016-01-30 17:22" for 2016 results copied in (Legacy2016.h), or the name itself for a video file's run.
 std::string runLabel(const std::string& name);
 
 }  // namespace resume

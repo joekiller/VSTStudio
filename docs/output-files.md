@@ -30,6 +30,7 @@ to stay under **Keep up to** (20 GB by default), and more if the disk falls unde
 |---|---|
 | `VST.cfg` | The camera view and calibration ([configuration reference](config-reference.md)). The first save of a session keeps the previous file as `VST.cfg.bak`. |
 | `vst-studio.ini` | VST Studio's own preferences: speed limit, site plan, last source and page, recent sources, phone pairing code, parking lane. |
+| `VST-2016.cfg` | Studio's copy of a 2016 `VST.cfg`, made when you pick up a setup from the original program ([VST Studio](vst-studio.md#coming-from-the-2016-videospeedtracker)). |
 | `calibration-history.csv` | Every calibration and check, appended and never rewritten: the record you can show someone ([VST Studio](vst-studio.md#calibration-history)). |
 | `calibration-inputs.json` | The measurements the calibration is combined from (drives, cones, a known car...). |
 | `calibration-passes.csv` | Which vehicles were your own calibration and check drives, so they are left out of the counts. |

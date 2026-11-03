@@ -20,6 +20,12 @@ public:
 	// Writes the current values to a scratch file for one tracking run, leaving the user's file untouched.
 	std::string writeRunCopy(const std::string& dir) const;
 	const std::string& path() const { return path_; }
+	// The file is a VST.cfg made for the 2016 VideoSpeedTracker (Legacy2016.h): its reader stops at any line it
+	// doesn't expect, so save() and restoreBackup() never write it.  Edits carry on in a copy (moveTo).
+	bool legacy2016() const { return legacy_; }
+	// Carries on editing in `copy`, a file already written (legacy2016::copyConfig's copy of a 2016 VST.cfg): its lines
+	// become the document and the next save writes there, while the values in g stay as they are, edits included.
+	bool moveTo(const std::string& copy);
 	Globals g;
 	std::vector<std::string> problems() { return g.problems(); }
 	bool dirty() const;
@@ -32,6 +38,7 @@ private:
 	std::vector<std::string> lines_;
 	std::string cleanSnapshot_;
 	std::string backedUp_;                    // path whose original is in backupPath() this session
+	bool legacy_ = false;
 };
 
 // A known key's current value in VST.cfg syntax, e.g. "obstruction" -> "[251,311]".
@@ -99,6 +106,9 @@ struct AppPrefs {
 	// The page on screen when Studio last closed (App::pageKey: "guide2" for Pick your spot, "results", ...), so it
 	// reopens where the user left off.  "" = before this existed: What you need, or Connect the camera once past it.
 	std::string lastPage;
+	// The 2016 VideoSpeedTracker setup (Legacy2016.h): the Setup::key() its welcome was last answered for, the one
+	// picked up ("" = none), and that setup's data folder, read only (its recordings are opened from there).
+	std::string legacySeen, legacyImported, legacyData;
 
 	void load();
 	void save() const;
