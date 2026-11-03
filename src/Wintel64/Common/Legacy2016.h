@@ -17,6 +17,15 @@
 //                           stats\stats_<yyyymmdd>_<hhmmss>.csv   one recording; header kStatsHeader
 //                           trace\trace_<same>.txt, HiLites\Hilites_<same>.avi, HiLites\forPosting\
 //
+// The last 2016 version (May 2016, the repository's neighborhoods branch, built from VisualStudio2013_Projects\...\
+// x64\Release) adds streets: neighborhoods.cfg beside the program ("dataPathPrefix = g:\VSTData #", then one
+// "Locust Avenue = Locust #" line per street) and, per street, <prefix>\<Short>Data\ holding the same folders plus
+// its own <Short>Data.cfg (the 23 lines; its reader also skips blank lines), <Short>HiLites.cfg and
+// stats\hiLiteStats_*.csv.  Its stats rows may end ", HiLite".
+//
+// Both versions write the stats Direction column as VST.cfg's value with its quotes (and any tabs before the '#'),
+// e.g. "SE": the 2016 trim() removed spaces only.  readStatsCsv() takes the quotes off.
+//
 // So "recognizing the environment" means finding a VST.cfg in exactly that 2016 shape and/or a data folder with
 // those fingerprints (the dir /b listings and 2016-header stats files are only ever written by the 2016 program).
 // scan() looks in the places such a setup would be; Setup says what it found, in numbers a greeting can quote.
@@ -37,8 +46,8 @@ const std::vector<std::string>& keys();
 // The header line the 2016 program wrote at the top of every stats csv (the date and time columns had no names).
 extern const char* const kStatsHeader;
 
-// Is this the text of a 2016-format VST.cfg: its 23 keys in order and nothing else?  A trailing newline is allowed
-// (an editor may add one; the 2016 program would then refuse the file, but it is still recognizably theirs).
+// Is this the text of a 2016-format VST.cfg: its 23 keys in order and nothing else?  Blank lines are allowed (the May
+// 2016 reader skips them; an editor may add one at the end).  Comments and extra keys are not.
 bool isConfigText(const std::string& text);
 bool isConfig(const std::filesystem::path& file);
 
@@ -77,21 +86,25 @@ struct Setup {
 // Looks at one folder as each thing a 2016 setup could be, and fills `out` with what it finds (keeping what is
 // already there, so a config found first gets its data folder added).  `dir` may be:
 //   a folder holding a 2016 VST.cfg (bin\, or the Visual Studio project folder)
-//   a download or clone of the 2016 repository (looks in bin\ and src\Wintel64\VideoSpeedTracker\)
+//   a download or clone of the 2016 repository (looks in bin\, src\Wintel64\VideoSpeedTracker\,
+//     VisualStudio2013_Projects\VideoSpeedTracker\x64\Release and Debug, and VSTData\)
+//   a folder holding neighborhoods.cfg, or a folder of street folders each with its own <Short>Data.cfg (G:\VSTData):
+//     the most complete street is taken, the creator's Locust Avenue on a tie
+//   a street's data folder with its own <Short>Data.cfg (G:\VSTData\LocustData)
 //   a data folder (IPCam / stats with 2016 fingerprints), e.g. g:\locustdata
 // Returns whether anything 2016 was found there.  `exclude` is never taken as a data folder (VST Studio's own).
 bool inspect(const std::filesystem::path& dir, Setup& out, const std::filesystem::path& exclude = {});
 
 // Where a 2016 data folder named by `dataPathPrefix` is now: as written when that exists, else a folder with its last
-// name ("locustdata") beside the config, in its parents, in the home folder or on another drive or volume (a setup
+// name ("locustdata") beside the config, in any folder above it, in the home folder or Documents, or on another drive or volume (a setup
 // copied from the old PC).  "" if none of those has 2016 data.
 std::filesystem::path findDataFolder(const std::string& dataPathPrefix, const std::filesystem::path& configDir,
 	const std::filesystem::path& exclude = {});
 
 // The folders scan() inspects: the working directory, the program's folder, the home folder and its Desktop,
-// Documents, Downloads, source\repos and Visual Studio project folders, the root of every drive (Windows) or mounted
-// volume (macOS /Volumes, Linux /media and /mnt), and inside each one any folder named VideoSpeedTracker* or
-// locustdata.  Only folders that exist are returned.
+// Documents, Downloads, source\repos, Documents\GitHub and Visual Studio project folders, the root of every drive
+// (Windows) or mounted volume (macOS /Volumes, Linux /media and /mnt), and inside each one any folder named
+// VideoSpeedTracker*, locustdata or VSTData.  Only folders that exist are returned.
 std::vector<std::filesystem::path> searchFolders();
 
 // The first 2016 setup found in `folders` (searchFolders() when empty), preferring one with a VST.cfg and data, then

@@ -39,7 +39,8 @@ bool readStatsCsv(const std::string& path, std::vector<StatsRow>& rows, std::str
 		}
 		r.date = f[0];
 		r.time = f[1];
-		r.compass = f[3];
+		// The 2016 program wrote VST.cfg's value as it was, quotes included ("SE"): Legacy2016.h.
+		r.compass = f[3].size() >= 2 && f[3].front() == '"' && f[3].back() == '"' ? trim(f[3].substr(1, f[3].size() - 2)) : f[3];
 		r.flagged = f.size() > 13 && f[13].find('*') != std::string::npos;
 		if (f.size() > 14) r.timestamp = f[14];
 		if (f.size() > 19 && !f[18].empty()) {
