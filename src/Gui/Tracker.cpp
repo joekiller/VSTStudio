@@ -1,5 +1,6 @@
 #include "Tracker.h"
 #include "Media.h"
+#include "Legacy2016.h"
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <algorithm>
@@ -110,7 +111,8 @@ void Tracker::worker(std::vector<Job> jobs, Options opt) {
 	for (size_t i = 0; i < jobs.size() && !stop_; i++) {
 		Job& job = jobs[i];
 		currentInput_ = job.input;
-		std::string stem = jobStem(job.input);
+		// A 2016 recording re-run into a data folder that holds the 2016 program's results for it keeps them (Legacy2016.h).
+		std::string stem = legacy2016::rerunStem(data / "Stats", jobStem(job.input));
 		job.statsPath = (data / "Stats" / ("stats_" + stem + ".csv")).string();
 		job.manifestPath = vst::manifestPathFor(job.statsPath);
 		currentStats_ = job.statsPath;

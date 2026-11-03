@@ -59,6 +59,13 @@ static std::string stampText(const std::string& s) {
 }
 
 std::string runLabel(const std::string& name) {
+	// Results the 2016 VideoSpeedTracker wrote, copied in by Legacy.cpp as stats_2016_<its name>.csv: one recording
+	// (yyyymmdd_hhmmss) or a whole day (yyyymmdd).
+	if (name.rfind("2016_", 0) == 0) {
+		std::string rest = name.substr(5);
+		bool day = rest.size() == 8 && std::all_of(rest.begin(), rest.end(), isDigit);
+		return "2016 VideoSpeedTracker  ·  " + (day ? rest.substr(0, 4) + "-" + rest.substr(4, 2) + "-" + rest.substr(6, 2) : stampText(rest));
+	}
 	// Tracker.cpp's jobStem: camera<index>_<stamp>, picam<index>_<stamp>, stream_<stamp>, or the video's own stem.
 	size_t us = name.find('_');
 	if (us == std::string::npos || name.size() < us + 16) return name;

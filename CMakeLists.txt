@@ -50,7 +50,7 @@ set(VST_DIR ${CMAKE_SOURCE_DIR}/src/Wintel64/VideoSpeedTracker)
 set(COMMON_DIR ${CMAKE_SOURCE_DIR}/src/Wintel64/Common)
 
 # Per-user config/data locations (XDG, %APPDATA%, ~/Library/Application Support), shared by both programs.
-add_library(vst_common STATIC ${COMMON_DIR}/UserPaths.cpp)
+add_library(vst_common STATIC ${COMMON_DIR}/UserPaths.cpp ${COMMON_DIR}/Legacy2016.cpp)
 target_include_directories(vst_common PUBLIC ${COMMON_DIR})
 if(WIN32)
   target_link_libraries(vst_common PUBLIC shell32 ole32)
@@ -293,6 +293,18 @@ if(TARGET vst_report)
   target_link_libraries(calibration_test PRIVATE vst_report)
   target_include_directories(calibration_test PRIVATE ${CMAKE_SOURCE_DIR}/src/Gui ${VST_DIR})
   add_test(NAME distance_calibration COMMAND calibration_test ${CMAKE_BINARY_DIR}/calibration-test)
+
+  # A 2016 VideoSpeedTracker setup (src/Wintel64/Common/Legacy2016.h, src/Gui/Legacy.cpp): recognized from its bin\
+  # and its data folder, picked up as copies, and never written: not its VST.cfg (Studio's config document opens it
+  # read only), not its results (a re-run, in Studio or the command-line tool, writes <name>_rerun.csv beside them).
+  add_executable(legacy_test tests/legacy_test.cpp ${CMAKE_SOURCE_DIR}/src/Gui/Settings.cpp ${VST_DIR}/Globals.cpp)
+  target_link_libraries(legacy_test PRIVATE vst_report vst_common ${OpenCV_LIBS})
+  target_include_directories(legacy_test PRIVATE ${CMAKE_SOURCE_DIR}/src/Gui ${VST_DIR})
+  if(MSVC)
+    target_compile_options(legacy_test PRIVATE /utf-8)
+  endif()
+  add_test(NAME legacy_2016_setup
+    COMMAND legacy_test ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/legacy-test $<TARGET_FILE:VideoSpeedTracker>)
 endif()
 
 # Live-stream reconnect: ffmpeg serves the sample as an HTTP stream that drops out and comes back
@@ -392,7 +404,8 @@ endif()
 
 if(VST_WERROR AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   foreach(t VideoSpeedTracker ProcessHiLites vst_common vst_webcam webcam_test vst_engine vst_report VSTStudio level_test frame_input_test
-      perspective_test speed_trend_test report_test health_test plan_test resume_test dashcam_test calibration_test engine_reconnect_test)
+      perspective_test speed_trend_test report_test health_test plan_test resume_test dashcam_test calibration_test engine_reconnect_test
+      legacy_test)
     if(TARGET ${t})
       target_compile_options(${t} PRIVATE -Werror)
     endif()

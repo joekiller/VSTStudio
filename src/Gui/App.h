@@ -25,6 +25,7 @@
 #include "ParkingLane.h"
 #include "DashCam.h"
 #include "Health.h"
+#include "Legacy2016.h"
 #include "Media.h"
 #include <imgui.h>
 #include "Plan.h"
@@ -290,6 +291,18 @@ public:
 	std::string frameRateAdvice(double fps);
 	std::string referenceViewPath();     // <configDir>/view-reference.jpg
 
+	// A setup made with the 2016 VideoSpeedTracker (Legacy.cpp, Legacy2016.h).  init() looks for one in the background;
+	// when it is found and its welcome hasn't been answered, a welcome opens ("Hello, Professor." for its creator's
+	// Locust Avenue setup) and offers to pick up where it left off: importLegacy() copies its VST.cfg to
+	// <configDir>/VST-2016.cfg and its results into the data folder, and opens its latest recording where it is.
+	// Nothing in the 2016 setup is ever written: a 2016 VST.cfg Studio opens is read only (ConfigDoc::legacy2016), and
+	// the first edit moves to the copy (legacyCopyOnWrite).
+	legacy2016::Setup legacy;           // what the scan found (found() false: nothing, or not looked yet)
+	bool legacyScanned() const { return legacyScanned_; }
+	bool importLegacy();
+	std::string legacyCopyPath() const;  // <configDir>/VST-2016.cfg
+	void showLegacyWelcome() { legacyWelcome_ = true; }
+
 	// Runs fn on the GUI thread at the start of the next frame and waits (up to 5 s) for its result.
 	std::string post(std::function<std::string()> fn);
 
@@ -413,6 +426,13 @@ private:
 	void sharedFeedBadge(const View& v);
 	const char* feedHint(const char* idle) const;
 	void sitePlanner();
+	void legacyPump();                  // Legacy.cpp: picks up the background scan, opens the welcome once
+	void legacyWelcomeModal();          // the welcome itself
+	void legacyCard(float width);       // What you need: the 2016 setup's status, or "Find my 2016 setup"
+	void legacyCopyOnWrite();           // autosave on a 2016 VST.cfg: carry the edit on in the copy instead
+	std::future<legacy2016::Setup> legacyScan_;
+	bool legacyScanned_ = false, legacyWelcome_ = false;
+	std::string legacyError_;
 	void planSaveBar(float width);      // Guide.cpp: Pick your spot's unsaved-changes bar (Save, Discard, autosave)
 	void mapCard(float width);          // Guide.cpp: "Find it on the map"
 	void cameraTiers(float width);      // Guide.cpp: which camera to get, worked out for this street
