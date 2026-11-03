@@ -229,7 +229,9 @@ bool isConfigText(const string& text) {
 		if (!l.empty() && l.back() == '\r') l.pop_back();
 		ls.push_back(l);
 	}
-	while (!ls.empty() && trim(ls.back()).empty()) ls.pop_back();
+	// The May 2016 reader (neighborhoods branch) skips blank lines anywhere, and an editor may add one at the end:
+	// still theirs.  Comments and extra keys are not: no 2016 reader accepted them.
+	ls.erase(std::remove_if(ls.begin(), ls.end(), [](const string& l) { return trim(l).empty(); }), ls.end());
 	if (ls.size() != keys().size()) return false;
 	for (size_t i = 0; i < ls.size(); i++) {
 		string k, v;
@@ -264,17 +266,24 @@ string Setup::key() const {
 	return norm(config) + "|" + norm(data);
 }
 
-fs::path findDataFolder(const string& dataPathPrefix, const fs::path& configDir, const fs::path& exclude) {
-	string prefix = trim(dataPathPrefix);
+namespace {
+
+// Where a folder the 2016 setup names by `prefix` (e.g. "g:\locustdata" or "g:\VSTData") is now, as accept() judges
+// it: as written when that exists (Windows), else a folder with its last name beside the config or in any folder
+// above it, in the home folder or Documents, or at the root of another drive or volume (a setup copied from the old
+// PC, or a drive that now has another letter).
+template <class Accept>
+fs::path locate(const string& prefixIn, const fs::path& configDir, const fs::path& exclude, Accept accept) {
+	string prefix = unquote(trim(prefixIn));
 	// The 2016 comment says "Use double back-slash" and Globals.h says not to: either way it means one.
 	for (size_t at; (at = prefix.find("\\\\")) != string::npos;) prefix.erase(at, 1);
 	if (prefix.empty()) return {};
-	Setup scratch;
 #if defined(_WIN32)
-	if (isDir(fs::path(prefix)) && !samePath(prefix, exclude)) return fs::path(prefix);
+	if (isDir(fs::path(prefix)) && !samePath(prefix, exclude) && accept(fs::path(prefix))) return fs::path(prefix);
 #else
 	// "g:\locustdata" names nothing on a Mac or Linux disk; a POSIX path from a later setup might.
-	if (prefix.find('\\') == string::npos && prefix.find(':') == string::npos && isDir(fs::path(prefix)) && !samePath(prefix, exclude))
+	if (prefix.find('\\') == string::npos && prefix.find(':') == string::npos && isDir(fs::path(prefix)) && !samePath(prefix, exclude)
+		&& accept(fs::path(prefix)))
 		return fs::path(prefix);
 #endif
 	string leaf = prefix;
@@ -283,57 +292,170 @@ fs::path findDataFolder(const string& dataPathPrefix, const fs::path& configDir,
 	if (cut != string::npos) leaf = leaf.substr(cut + 1);
 	if (leaf.empty()) return {};
 	vector<fs::path> bases;
-	if (!configDir.empty()) {
-		bases.push_back(configDir);
-		bases.push_back(configDir.parent_path());
-		bases.push_back(configDir.parent_path().parent_path());
+	// The config's folder and each one above it: a clone's x64\Release is four levels under the clone, and a
+	// VSTData folder copied into the clone sits at its root.
+	for (fs::path d = configDir; !d.empty(); d = d.parent_path()) {
+		bases.push_back(d);
+		if (d == d.parent_path()) break;
 	}
 	bases.push_back(home());
 	bases.push_back(home() / "Documents");
 	for (const fs::path& v : volumes()) bases.push_back(v);
-	for (const fs::path& b : bases) {
-		if (b.empty()) continue;
-		fs::path d = child(b, leaf);
-		if (!d.empty() && isDir(d) && !samePath(d, exclude) && countData(d, scratch)) return d;
+	for (const fs::path& base : bases) {
+		if (base.empty()) continue;
+		fs::path d = child(base, leaf);
+		if (!d.empty() && isDir(d) && !samePath(d, exclude) && accept(d)) return d;
 	}
 	return {};
 }
 
-bool inspect(const fs::path& dir, Setup& out, const fs::path& exclude) {
+// How complete a found setup is: a config (2), its data (1), used (1); the creator's own street breaks a tie.
+int score(const Setup& s) {
+	return 2 * ((s.config.empty() ? 0 : 2) + (s.data.empty() ? 0 : 1) + (s.used() ? 1 : 0)) + (s.creator() ? 1 : 0);
+}
+
+// A folder's own name, also for "G:\VSTData\LocustData\" (whose filename() is empty).
+string nameOf(fs::path d) {
+	if (d.filename().empty()) d = d.parent_path();
+	return d.filename().string();
+}
+
+// Fills `out` from a 2016 config: where it is, the files beside it, and the values the welcome quotes.
+void takeConfig(const fs::path& cfg, Setup& out) {
+	out.config = cfg;
+	for (const string& l : lines(cfg)) {
+		string k, v;
+		sides(l, k, v);
+		if (k == "dataPathPrefix") out.dataPathPrefix = v;
+		else if (k == "L2RDirection") out.l2r = unquote(v);
+		else if (k == "R2LDirection") out.r2l = unquote(v);
+		else if (k == "CalibrationFramesL2R") out.calL2R = toInt(v);
+		else if (k == "CalibrationFramesR2L") out.calR2L = toInt(v);
+	}
+	fs::path dir = cfg.parent_path();
+	fs::path hl = child(dir, "ProcessHiLites.cfg");
+	if (hl.empty()) hl = child(dir, nameOf(dir).substr(0, nameOf(dir).size() >= 4 ? nameOf(dir).size() - 4 : 0) + "HiLites.cfg");
+	if (isFile(hl)) out.hiLitesConfig = hl;
+	fs::path exe = child(dir, "VideoSpeedTracker.exe");
+	if (isFile(exe)) out.program = exe;
+}
+
+// neighborhoods.cfg (May 2016, pfr/VideoSpeedTracker's neighborhoods branch): "dataPathPrefix = g:\VSTData #" and
+// then one "Locust Avenue = Locust #" line per street.  Street <Short> keeps its data and its <Short>Data.cfg in
+// <dataPathPrefix>\<Short>Data.  Returns the prefix and the short names, in the file's order (the 2016 default is 1).
+bool readNeighborhoods(const fs::path& file, string& prefix, vector<string>& streets) {
+	vector<string> ls = lines(file);
+	if (ls.empty()) return false;
+	string k, v;
+	sides(ls[0], k, v);
+	if (k != "dataPathPrefix") return false;
+	prefix = v;
+	for (size_t i = 1; i < ls.size(); i++) {
+		if (trim(ls[i]).empty() || ls[i].find('=') == string::npos) continue;
+		sides(ls[i], k, v);
+		if (!v.empty()) streets.push_back(v);
+	}
+	return true;
+}
+
+// Each street folder (<Short>Data, with its own <Short>Data.cfg or 2016 data) in `root`, e.g. G:\VSTData.
+vector<fs::path> streetFolders(const fs::path& root, const vector<string>& streets) {
+	vector<fs::path> out;
+	if (!streets.empty()) {
+		for (const string& st : streets) {
+			fs::path d = child(root, st + "Data");
+			if (isDir(d)) out.push_back(d);
+		}
+		return out;
+	}
+	std::error_code ec;
+	for (fs::directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec)) {
+		string n = lower(it->path().filename().string());
+		if (n.size() > 4 && n.compare(n.size() - 4, 4, "data") == 0 && it->is_directory(ec)) out.push_back(it->path());
+	}
+	std::sort(out.begin(), out.end());
+	return out;
+}
+
+}  // namespace
+
+fs::path findDataFolder(const string& dataPathPrefix, const fs::path& configDir, const fs::path& exclude) {
+	return locate(dataPathPrefix, configDir, exclude, [](const fs::path& d) { Setup scratch; return countData(d, scratch); });
+}
+
+namespace {
+
+// inspect(), with `streets` saying whether `dir` may also be a folder of street folders (one level only: a street
+// folder is never searched for streets of its own, so a home folder's AppData isn't walked).
+bool inspectAt(const fs::path& dir, Setup& out, const fs::path& exclude, bool streets) {
 	if (!isDir(dir)) return false;
 	bool any = false;
-	fs::path cfg = child(dir, "VST.cfg");
-	if (out.config.empty() && isConfig(cfg)) {
-		out.config = cfg;
-		for (const string& l : lines(cfg)) {
-			string k, v;
-			sides(l, k, v);
-			if (k == "dataPathPrefix") out.dataPathPrefix = v;
-			else if (k == "L2RDirection") out.l2r = unquote(v);
-			else if (k == "R2LDirection") out.r2l = unquote(v);
-			else if (k == "CalibrationFramesL2R") out.calL2R = toInt(v);
-			else if (k == "CalibrationFramesR2L") out.calR2L = toInt(v);
-		}
-		fs::path hl = child(dir, "ProcessHiLites.cfg");
-		if (isFile(hl)) out.hiLitesConfig = hl;
-		fs::path exe = child(dir, "VideoSpeedTracker.exe");
-		if (isFile(exe)) out.program = exe;
-		if (out.data.empty()) {
-			fs::path d = findDataFolder(out.dataPathPrefix, dir, exclude);
-			if (!d.empty() && !countData(d, out)) out.data = d;   // the folder it names, even before any recording
-		}
-		any = true;
-	}
-	// A download or clone of the 2016 repository: its bin\ and the Visual Studio project folder.
+	// The config: VST.cfg (Feb-Mar 2016, read from the folder the program ran in), or a street's own
+	// <Short>Data.cfg in its data folder (May 2016, LocustData\LocustData.cfg).
 	if (out.config.empty()) {
-		for (const fs::path& sub : { fs::path("bin"), fs::path("src") / "Wintel64" / "VideoSpeedTracker" }) {
-			fs::path d = dir / sub;
-			if (isDir(d) && isConfig(child(d, "VST.cfg"))) { any = inspect(d, out, exclude) || any; break; }
+		fs::path cfg = child(dir, "VST.cfg");
+		bool own = false;
+		if (!isConfig(cfg)) { cfg = child(dir, nameOf(dir) + ".cfg"); own = true; }
+		if (isConfig(cfg)) {
+			takeConfig(cfg, out);
+			if (out.data.empty()) {
+				// A street's own config sits in its data folder, which the 2016 program used whatever its first
+				// line said (neighborhoods.cfg's prefix wins).  Otherwise the data folder is the one it names.
+				fs::path d = own ? dir : findDataFolder(out.dataPathPrefix, dir, exclude);
+				if (own && samePath(d, exclude)) d.clear();
+				if (!d.empty() && !countData(d, out)) out.data = d;   // the folder it names, even before any recording
+			}
+			any = true;
 		}
+	}
+	// Several streets (May 2016): neighborhoods.cfg here, beside the program, or a folder of <Short>Data streets
+	// such as G:\VSTData.  The 2016 program asked which street at every run, so each is a setup of its own; the most
+	// complete is taken (the creator's Locust Avenue on a tie, else the first listed, the 2016 default).
+	if (streets && out.config.empty() && out.data.empty()) {
+		fs::path hoods = child(dir, "neighborhoods.cfg");
+		string prefix;
+		vector<string> names;
+		fs::path root;
+		if (isFile(hoods) && readNeighborhoods(hoods, prefix, names))
+			root = locate(prefix, dir, exclude, [&](const fs::path& r) { return !streetFolders(r, names).empty(); });
+		else if (!samePath(dir, exclude))
+			root = dir;
+		bool listed = !names.empty();
+		Setup best;
+		if (!root.empty())
+			for (const fs::path& street : streetFolders(root, names)) {
+				// Without neighborhoods.cfg, only a folder with its own <Short>Data.cfg counts as a street.
+				if (samePath(street, exclude) || (!listed && !isConfig(child(street, nameOf(street) + ".cfg")))) continue;
+				Setup s;
+				if (inspectAt(street, s, exclude, false) && score(s) > score(best)) best = s;
+			}
+		if (best.found()) {
+			fs::path exe = child(dir, "VideoSpeedTracker.exe");
+			if (best.program.empty() && isFile(exe)) best.program = exe;
+			out = best;
+			any = true;
+		}
+	}
+	// A download or clone of the 2016 repository: bin\ and the Visual Studio project folder (master), the Visual
+	// Studio 2013 build folders and the VSTData streets (neighborhoods branch).
+	if (out.config.empty()) {
+		Setup best;
+		for (const fs::path& sub : { fs::path("bin"), fs::path("src") / "Wintel64" / "VideoSpeedTracker",
+				fs::path("VisualStudio2013_Projects") / "VideoSpeedTracker" / "x64" / "Release",
+				fs::path("VisualStudio2013_Projects") / "VideoSpeedTracker" / "x64" / "Debug", fs::path("VSTData") }) {
+			fs::path d = dir / sub;
+			Setup s;
+			if (isDir(d) && inspectAt(d, s, exclude, sub == "VSTData") && !s.config.empty() && score(s) > score(best)) best = s;
+		}
+		if (best.found()) { out = best; any = true; }
 	}
 	if (out.data.empty() && !samePath(dir, exclude) && countData(dir, out)) any = true;
 	return any;
 }
+
+}  // namespace
+
+bool inspect(const fs::path& dir, Setup& out, const fs::path& exclude) { return inspectAt(dir, out, exclude, true); }
 
 vector<fs::path> searchFolders() {
 	vector<fs::path> roots;
@@ -342,20 +464,23 @@ vector<fs::path> searchFolders() {
 	fs::path h = home();
 	if (!h.empty()) {
 		addIfDir(roots, h);
-		for (const char* sub : { "Desktop", "Documents", "Downloads", "source/repos", "OneDrive/Desktop", "OneDrive/Documents" })
+		for (const char* sub : { "Desktop", "Documents", "Downloads", "source/repos", "OneDrive/Desktop", "OneDrive/Documents",
+				// GitHub for Windows (2016) and GitHub Desktop clone into Documents\GitHub; some keep a GitHub folder at home.
+				"Documents/GitHub", "GitHub", "OneDrive/Documents/GitHub" })
 			addIfDir(roots, h / fs::path(sub).make_preferred());
 		// Visual Studio 2013/2015/...'s default project folders, where the 2016 solution would have been opened.
 		for (fs::directory_iterator it(h / "Documents", ec), end; !ec && it != end; it.increment(ec))
 			if (startsWith(lower(it->path().filename().string()), "visual studio")) addIfDir(roots, it->path() / "Projects");
 	}
 	for (const fs::path& v : volumes()) addIfDir(roots, v);
-	// Inside each, one level down: the download / clone (VideoSpeedTracker, VideoSpeedTracker-master) and the data folder.
+	// Inside each, one level down: the download / clone (VideoSpeedTracker, VideoSpeedTracker-master) and the data folder
+	// (locustdata, or VSTData with a folder per street from May 2016).
 	vector<fs::path> out = roots;
 	for (const fs::path& r : roots) {
 		std::error_code e;
 		for (fs::directory_iterator it(r, e), end; !e && it != end; it.increment(e)) {
 			string n = lower(it->path().filename().string());
-			if ((startsWith(n, "videospeedtracker") || n == "locustdata") && it->is_directory(e)) addIfDir(out, it->path());
+			if ((startsWith(n, "videospeedtracker") || n == "locustdata" || n == "vstdata") && it->is_directory(e)) addIfDir(out, it->path());
 		}
 	}
 	return out;
@@ -364,12 +489,11 @@ vector<fs::path> searchFolders() {
 Setup scan(const vector<fs::path>& folders, const fs::path& exclude) {
 	vector<fs::path> where = folders.empty() ? searchFolders() : folders;
 	Setup best;
-	auto score = [](const Setup& s) { return (s.config.empty() ? 0 : 2) + (s.data.empty() ? 0 : 1) + (s.used() ? 1 : 0); };
 	for (const fs::path& d : where) {
 		Setup s;
 		if (!inspect(d, s, exclude)) continue;
 		if (score(s) > score(best)) best = s;
-		if (score(best) == 4) break;   // a config with its data, used: nothing better to find
+		if (score(best) == 9) break;   // the creator's config with its data, used: nothing better to find
 	}
 	return best;
 }

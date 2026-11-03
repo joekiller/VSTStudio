@@ -667,10 +667,14 @@ works on top of it without changing it.
 The 2016 program kept everything in two places: `VST.cfg` beside the program (exactly 23 `key = value` lines in a fixed
 order; its reader stops at anything else) with `ProcessHiLites.cfg`, and the data folder that `VST.cfg` names
 (`g:\locustdata` as shipped), holding `IPCam\<yyyymmdd>\manual_*.avi` recordings, the `directories.txt` and
-`files.txt` listings each run wrote, `stats\stats_*.csv`, `trace\` and `HiLites\`. At launch, Studio looks for those
-in the folder it was started from, the home folder and its Desktop, Documents, Downloads and Visual Studio project
-folders, every drive (Windows) or mounted volume (macOS, Linux), and any folder named `VideoSpeedTracker*` or
-`locustdata` in those. A data folder whose drive letter doesn't exist any more (a disk moved to a Mac, say) is found by
+`files.txt` listings each run wrote, `stats\stats_*.csv`, `trace\` and `HiLites\`. The last 2016 version (May 2016,
+the repository's `neighborhoods` branch) added streets: `neighborhoods.cfg` beside the program names a folder such as
+`g:\VSTData` and one short name per street, and each street keeps the same folders plus its own `<Short>Data.cfg`
+in `<folder>\<Short>Data` (for example `G:\VSTData\LocustData\LocustData.cfg`). Studio recognizes both. At launch,
+it looks in the folder it was started from, the home folder and its Desktop, Documents, Downloads, `Documents\GitHub`
+(where GitHub for Windows cloned) and Visual Studio project folders, every drive (Windows) or mounted volume (macOS,
+Linux), and any folder named `VideoSpeedTracker*`, `locustdata` or `VSTData` in those. Where there are several
+streets, it picks up the one with the most there (Locust Avenue on a tie); the others are left as they are. A data folder whose drive letter doesn't exist any more (a disk moved to a Mac, say) is found by
 its name. If the setup isn't found by itself, **Find my 2016 setup** at the bottom of What you need points Studio at
 the folder.
 
@@ -678,7 +682,7 @@ When it finds one, a welcome says what is there: the settings and their calibrat
 days, and how many vehicles the results files hold. The Locust Avenue setup itself, recognized by its NW/SE headings or
 its `locustdata` folder and with recordings or results in it, is greeted as its creator's. **Pick up where I left off**:
 
-- copies `VST.cfg` to `VST-2016.cfg` in the config folder, with its comments, a note saying where it came from, a blank
+- copies `VST.cfg` (or the street's `<Short>Data.cfg`) to `VST-2016.cfg` in the config folder, with its comments, a note saying where it came from, a blank
   `dataPathPrefix` (new results go to Studio's own data folder) and the 25 mph / 30 fps calibration the 2016 program
   assumed. Its calibration stands ("calibrated, not checked"), and its zones count as marked for the 2016 camera;
 - copies each 2016 results file into `Stats/` as `stats_2016_<name>.csv`, keeping its date, so Results lists them

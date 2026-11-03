@@ -14,6 +14,7 @@
 //   - Studio's config document opens the 2016 VST.cfg read only and carries edits on in the copy
 //   - a re-run never replaces a 2016 stats csv, in Studio (rerunStem) or the command-line tool (--stats onto one)
 #include "Legacy2016.h"
+#include "Results.h"
 #include "Resume.h"
 #include "Settings.h"
 #include <chrono>
@@ -24,6 +25,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace fs = std::filesystem;
 using namespace legacy2016;
@@ -53,11 +55,19 @@ static Snapshot snapshot(const fs::path& dir) {
 	return s;
 }
 
+// What the 2016 program wrote, byte for byte: its getSides()/trim() kept VST.cfg's quotes and the tabs before the '#'
+// (trim() removed spaces only), so the Direction column is "SE"<tab><tab><tab>; a crazy speed ends ", *****".
 static const char* kRows2016 =
 	", , Frame, Direction, StartFrame, EndFrame, # Frames, StartPix, EndPix, DeltaPix, VehicleArea, , estSpeed\r\n"
-	"20160130, 172251, 120, SE, 85, 117, 32, 12, 1250, 1238, 61, , 27\r\n"
-	"20160130, 172251, 410, NW, 368, 405, 37, 1260, 15, -1245, 70, , 27\r\n"
-	"20160130, 172251, 900, SE, 872, 899, 27, 10, 1255, 1245, 140, , 32\r\n";
+	"20160130, 172251, 120, \"SE\"\t\t\t, 85, 117, 32, 12, 1250, 1238, 61, , 27\r\n"
+	"20160130, 172251, 410, \"NW\"\t\t\t, 368, 405, 37, 1260, 15, -1245, 70, , 27\r\n"
+	"20160130, 172251, 900, \"SE\"\t\t\t, 872, 899, 27, 10, 1255, 1245, 140, , 72, *****\r\n";
+
+// The May 2016 version (neighborhoods branch) adds ", HiLite" to a row that went into the highlights reel.
+static const char* kRowsMay2016 =
+	", , Frame, Direction, StartFrame, EndFrame, # Frames, StartPix, EndPix, DeltaPix, VehicleArea, , estSpeed\r\n"
+	"20160429, 125958, 300, \"SE\"\t\t\t, 270, 299, 29, 10, 1250, 1240, 120, , 30, HiLite\r\n"
+	"20160429, 125958, 700, \"NW\"\t\t\t, 660, 698, 38, 1260, 20, -1240, 90, , 26\r\n";
 
 // The 2016 setup on "drive G:": G/bin and G/locustdata.
 static fs::path make2016(const fs::path& root, const fs::path& repo) {
@@ -211,6 +221,13 @@ static void testPickUp(const fs::path& work, const fs::path& repo) {
 	// Results lists them, labelled as the 2016 program's.
 	auto runs = resume::savedRuns(data.string());
 	CHECK(runs.size() == 1 && runs[0].name == "2016_20160130_172251");
+	// Read as the 2016 program wrote them: quotes off the direction, the flag kept, every row a vehicle.
+	std::vector<StatsRow> rows;
+	int skipped = -1;
+	CHECK(readStatsCsv(csv.string(), rows, err, &skipped) && skipped == 0 && rows.size() == 3);
+	CHECK(rows.size() == 3 && rows[0].compass == "SE" && rows[1].compass == "NW" && rows[2].compass == "SE");
+	CHECK(rows.size() == 3 && rows[0].date == "20160130" && rows[0].time == "172251" && rows[0].speed == 27);
+	CHECK(rows.size() == 3 && !rows[0].flagged && rows[2].flagged && rows[2].speed == 72);
 	CHECK(resume::runLabel("2016_20160130_172251") == "2016 VideoSpeedTracker  ·  2016-01-30 17:22");
 	CHECK(resume::runLabel("2016_20160130") == "2016 VideoSpeedTracker  ·  2016-01-30");
 
@@ -238,6 +255,122 @@ static void testPickUp(const fs::path& work, const fs::path& repo) {
 	CHECK(rerunStem(data / "Stats", "camera0_20261101_133012") == "camera0_20261101_133012");
 
 	CHECK(snapshot(g) == before);   // not a byte, not a time stamp
+}
+
+static void setHome(const fs::path& h) {
+#if defined(_WIN32)
+	_putenv_s("USERPROFILE", h.string().c_str());
+#else
+	setenv("HOME", h.string().c_str(), 1);
+#endif
+}
+
+// The last 2016 version (pfr/VideoSpeedTracker's neighborhoods branch, May 2016), as its creator ran it: the clone in
+// Documents\GitHub, the program built in VisualStudio2013_Projects\VideoSpeedTracker\x64\Release beside
+// neighborhoods.cfg, and the streets' data on drive G: as G:\VSTData\<Short>Data, each with its own <Short>Data.cfg.
+// The fixtures are the branch's files byte for byte.
+static void testNeighborhoods(const fs::path& work, const fs::path& repo) {
+	fs::path fx = repo / "tests/fixtures/legacy2016/neighborhoods";
+	fs::path root = work / "May";
+	fs::remove_all(root);
+	fs::path home = root / "home", clone = home / "Documents/GitHub/VideoSpeedTracker";
+	fs::path release = clone / "VisualStudio2013_Projects/VideoSpeedTracker/x64/Release";
+	fs::create_directories(release);
+	fs::copy_file(fx / "neighborhoods.cfg", release / "neighborhoods.cfg");
+	put(release / "VideoSpeedTracker.exe", "MZ");
+	fs::path vst = root / "G/VSTData";
+	for (const char* st : { "Locust", "OLR", "Rugby" }) {
+		fs::path d = vst / (std::string(st) + "Data");
+		fs::create_directories(d / "HiLites/forPosting");
+		fs::create_directories(d / "Trace");
+		fs::copy_file(fx / (std::string(st) + "Data.cfg"), d / (std::string(st) + "Data.cfg"));
+		fs::copy_file(fx / (std::string(st) + "HiLites.cfg"), d / (std::string(st) + "HiLites.cfg"));
+	}
+	fs::path locust = vst / "LocustData";
+	put(locust / "IPCam/directories.txt", "20160424\r\n20160429\r\n");
+	put(locust / "IPCam/20160424/manual_20160424090000.avi", "avi");
+	put(locust / "IPCam/20160429/manual_20160429125958.avi", "avi");
+	put(locust / "IPCam/20160429/files.txt", "manual_20160429125958.avi\r\n");
+	put(locust / "Stats/stats_20160429_125958.csv", kRowsMay2016);
+	put(locust / "Stats/hiLiteStats_20160429_125958.csv", "20160429, 125958, 300, L2R, 640, 150, 120, 30\r\n");
+	put(locust / "HiLites/Hilites_20160424.avi", "avi");
+	put(vst / "OLRData/IPCam/20160301/manual_20160301080000.avi", "avi");
+	Snapshot before = snapshot(root);
+
+	// Each street's config is a 2016 config: same 23 keys, and the reader of the time skipped blank lines.
+	CHECK(isConfig(locust / "LocustData.cfg"));
+	std::string text = slurp(locust / "LocustData.cfg");
+	std::string blank = text;
+	blank.insert(blank.find("\r\nAnalysisBoxLeft") + 2, "\r\n");   // a blank line between two keys
+	CHECK(isConfigText(blank));
+	CHECK(!isConfig(release / "neighborhoods.cfg"));
+
+	fs::path g = root / "G";
+	auto check = [&](const Setup& x, int line) {
+		bool ok = x.config == locust / "LocustData.cfg" && x.data == locust && x.l2r == "SE" && x.r2l == "NW"
+			&& x.calL2R == 35 && x.calR2L == 40 && x.recordings == 2 && x.days == 2 && x.statsFiles.size() == 1
+			&& x.statsRows == 2 && x.highlights == 1 && x.hiLitesConfig == locust / "LocustHiLites.cfg" && x.creator()
+			&& x.dataPathPrefix == "g:\\VSTData\\LocustData";
+		if (!ok) std::printf("  (setup from line %d: config %s, data %s, %d recordings, %d rows)\n", line, x.config.string().c_str(),
+			x.data.string().c_str(), x.recordings, x.statsRows);
+		CHECK(ok);
+	};
+	// The street folder itself, G:\VSTData (a folder of streets), and the clone's root holding a VSTData copy.
+	Setup street;
+	CHECK(inspect(locust, street));
+	check(street, __LINE__);
+	Setup streets;
+	CHECK(inspect(vst, streets));
+	check(streets, __LINE__);   // Locust: the creator's street, and the most complete
+	// neighborhoods.cfg beside the program, its g:\VSTData found where the drive is (a folder above it here).
+	fs::path beside = g / "VisualStudio2013_Projects/VideoSpeedTracker/x64/Release";
+	fs::create_directories(beside);
+	fs::copy_file(fx / "neighborhoods.cfg", beside / "neighborhoods.cfg");
+	put(beside / "VideoSpeedTracker.exe", "MZ");
+	before = snapshot(root);
+	Setup hoods;
+	CHECK(inspect(beside, hoods));
+	check(hoods, __LINE__);
+	CHECK(hoods.program == beside / "VideoSpeedTracker.exe");
+	// A clone at the root of G: (its VisualStudio2013_Projects build folder), and G:\ itself through the scan.
+	Setup cloneRoot;
+	CHECK(inspect(g, cloneRoot));
+	check(cloneRoot, __LINE__);
+	CHECK(scan({ g }).key() == hoods.key());
+
+	// The usual places, from a home folder whose Documents\GitHub holds the clone: the clone is found and named.
+#if defined(_WIN32)
+	const char* oldHome = std::getenv("USERPROFILE");
+#else
+	const char* oldHome = std::getenv("HOME");
+#endif
+	std::string keepHome = oldHome ? oldHome : "";
+	setHome(home);
+	bool listed = false;
+	for (const fs::path& f : searchFolders()) listed |= fs::equivalent(f, clone);
+	CHECK(listed);
+	setHome(keepHome);
+
+	// Picked up: today's tracker reads the street's config, with its values, writing to VST Studio's own folder.
+	fs::path copy = work / "config-may/VST-2016.cfg";
+	fs::remove_all(work / "config-may");
+	std::string err;
+	CHECK(copyConfig(street, copy, err, "2026-11-03") && err.empty());
+	Globals mine;
+	CHECK(mine.readConfig(copy.string()));
+	CHECK(mine.dataPathPrefix.empty() && mine.L2RDirection == "SE" && mine.R2LDirection == "NW");
+	CHECK(mine.R2LStreetY == 120 && mine.L2RStreetY == 150 && mine.CalibrationFramesL2R == 35);
+	CHECK(mine.problems().empty());
+	Globals theirs;
+	CHECK(theirs.readConfig((locust / "LocustData.cfg").string()));
+	fs::path data = work / "data-may";
+	fs::remove_all(data);
+	CHECK(copyStats(street, data, err) == 1 && err.empty());   // stats_*, not hiLiteStats_*
+	std::vector<StatsRow> rows;
+	CHECK(readStatsCsv((data / "Stats/stats_2016_20160429_125958.csv").string(), rows, err) && rows.size() == 2);
+	CHECK(rows.size() == 2 && rows[0].compass == "SE" && rows[1].compass == "NW" && rows[0].speed == 30 && !rows[0].flagged);
+
+	CHECK(snapshot(root) == before);   // looking and picking up never write in the 2016 setup
 }
 
 // The command-line tool given --stats onto a 2016 csv, with the 2016 VST.cfg as it is: it runs on that config and
@@ -271,6 +404,7 @@ int main(int argc, char** argv) {
 	testFormat(repo);
 	testFind(work, repo);
 	testPickUp(work, repo);
+	testNeighborhoods(work, repo);
 	if (argc > 3) testCommandLine(work, repo, argv[3]);
 	std::printf("%d checks, %d failed\n", checks, failures);
 	return failures ? 1 : 0;
