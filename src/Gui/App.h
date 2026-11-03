@@ -134,6 +134,24 @@ public:
 	bool remoteOn() const;              // the companion server is up for the phone (not just the map's local one)
 	std::string dataDir();
 	std::string findSample();
+	// The bundled 2016 Locust Avenue sample, the newcomer's "see it work first" path (Sample.cpp).
+	//   isSample(): true for the sample's path, whatever was asked for ("" never is).
+	//   trySample(): one click from any empty screen: opens the sample, goes to Live tracking and starts a run as soon as
+	//     the video is open (frame() calls sampleStartPump(), which waits for the background open).
+	//   sampleOwnSettings(): whether a sample run uses the sample's own 2016 VST.cfg instead of yours.  It does once
+	//     you've marked a street of your own (prefs.zonesFor), so trying the sample later can't time it on your lines;
+	//     before that your VST.cfg is the same template, and practice edits on the sample show in the run.
+	//   liveG(): the settings the Live page draws, the sample's own while such a run is on screen.
+	//   sampleNote(): the "this is the sample, not your street" card, with the way on to the first step left to do.
+	bool isSample(const std::string& s);
+	void trySample();
+	void sampleStartPump();
+	bool sampleOwnSettings();
+	Globals& liveG();
+	void sampleNote(float width, bool onLive);
+	void sampleTryCard(float width);       // What you need: "See it work first" on the 2016 sample
+	void sampleStepNote(bool calibrate);   // Mark your street / Calibrate: what the page means with the sample open
+	int firstOpenStep();                // the first setup step not yet done for your own street (0-4)
 	// Adds a pass at a known speed to the calibration (CalEvidence.h): one direction, or the lane both ways on a
 	// one-way street.  It joins what the other methods measured instead of replacing them; addCalibrationInput()
 	// then sets CalibrationFrames from all of them.
@@ -552,6 +570,9 @@ private:
 	double autosaveAt_ = 0;             // when the pending autosave fires (0 = nothing pending)
 	double savedAt_ = 0;                // last successful autosave, for the rail's "saved" note
 	std::string sampleCache_;
+	bool sampleStart_ = false;          // trySample() asked for a run once the sample has opened
+	ConfigDoc sampleCfg_;               // the sample's own settings (the installed VST.cfg template), loaded on first use
+	bool sampleRunOwn_ = false;         // the run on screen is the sample with sampleCfg_, so Live draws its zones
 	// A camera or stream still connecting in the background: it joins Recent (and is reopened next launch) only once it
 	// opens, so an address that never answered doesn't come back as a recent source.  "" = nothing pending.
 	std::string pendingRecent_;

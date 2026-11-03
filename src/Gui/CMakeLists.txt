@@ -152,6 +152,7 @@ add_executable(VSTStudio WIN32
   Settings.cpp
   Theme.cpp
   Tracker.cpp
+  Sample.cpp
   ${SINGLE_DIR}/qrcodegen.cpp
   ${EMBEDDED})
 target_include_directories(VSTStudio PRIVATE ${pfd_SOURCE_DIR} ${SINGLE_DIR})
