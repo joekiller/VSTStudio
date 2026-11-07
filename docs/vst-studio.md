@@ -342,7 +342,7 @@ You can drive past at any steady speed and let a recording supply the speed, ins
 
 - **A Tesla's dashcam.** Teslas on software 2025.44.25 or later (HW3 and newer) record the car's speed in every
   dashcam frame. Use the `-front.mp4` clip for that minute from the USB drive's `TeslaCam` folder.
-- **Any phone, with VST Ride-along.** Open [joekiller.github.io/VSTStudio](https://joekiller.github.io/VSTStudio/)
+- **Any phone, with VST Ride-along.** Open [joekiller.github.io/VSTStudio/ride](https://joekiller.github.io/VSTStudio/ride/)
   on the phone (add it to the home screen and it works with no signal), pick your target speed (it shows on target,
   too fast or too slow while you drive), tap **Start recording** before you set off,
   drive past, then **Stop** and save the `.csv` to the computer. It records the phone's GPS position and speed, which

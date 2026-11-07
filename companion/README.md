@@ -45,8 +45,16 @@ address, which lets the browser cache it for offline start-up.
 A separate one-page app for calibration drives: it records the phone's GPS (time, position, GPS speed, accuracy)
 while you drive past the camera and saves it as a CSV that VST Studio reads on the Calibrate page, alone or with a
 Tesla dashcam clip of the same drive. Browsers only give GPS to https pages, so it doesn't run from VST Studio's
-plain-http server: `.github/workflows/pages.yml` publishes just this folder on GitHub Pages, and it works offline
-once added to the home screen. It never talks to VST; the file is the hand-off.
+plain-http server: `.github/workflows/pages.yml` publishes it on GitHub Pages at
+[joekiller.github.io/VSTStudio/ride](https://joekiller.github.io/VSTStudio/ride/), and it works offline once added to
+the home screen. It never talks to VST; the file is the hand-off.
+
+## On the project's home page
+
+The same Pages site publishes this whole folder at
+[joekiller.github.io/VSTStudio/companion](https://joekiller.github.io/VSTStudio/companion/) (see `site/assemble.sh`).
+An https page can't reach VST over plain http, so there it's a showcase: `companion/#demo` opens straight into the
+demo, and pairing by hand explains why it can't connect from there.
 
 ## How it's built
 

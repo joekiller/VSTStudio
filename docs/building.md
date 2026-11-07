@@ -89,7 +89,7 @@ Each workflow runs only when a change touches files it builds from, to keep CI c
 | `windows.yml`, `macos.yml` | pull requests (unsigned), and called by `release.yml` | The same Windows and macOS builds, tests and packages the release ships. |
 | `release.yml` | `main` and version tags | Every platform, including the eight Linux `.deb` packages, attested; signed and published on tags only. |
 | `cut-release.yml` | by hand | Tags `main` from the GitHub web page (see below). |
-| `pages.yml` | `main`, when `companion/ride/` changes | Publishes VST Ride-along (`companion/ride/`) on GitHub Pages. |
+| `pages.yml` | `main`, when `site/`, `companion/` or `docs/images/` change | Publishes the [home page](https://joekiller.github.io/VSTStudio/) (`site/`) on GitHub Pages, with the companion demo at `/companion/` and VST Ride-along at `/ride/`. Preview it with `site/assemble.sh`. |
 
 Wait for the Windows and macOS checks before calling a change to their code done: code under `#ifdef _WIN32`,
 `packaging/windows`, `.mm` files and the app bundle are only built there.

@@ -3020,7 +3020,7 @@ void App::dashcamSpeed(const Vehicle* picked) {
 	if (ImGui::IsItemHovered())
 		ImGui::SetTooltip("Drive past at any steady speed while recording, then pick the files. Load both to cross-check them.\n"
 			"  Tesla: the -front.mp4 clips from the USB drive's TeslaCam folder (software 2025.44.25 or later, HW3 and newer).\n"
-			"  Any phone: a recording from VST Ride-along, the GPS recorder at joekiller.github.io/VSTStudio.");
+			"  Any phone: a recording from VST Ride-along, the GPS recorder at joekiller.github.io/VSTStudio/ride.");
 	if (dashClips_.empty()) return;
 
 	int teslas = 0, phones = 0;

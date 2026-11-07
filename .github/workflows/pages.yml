@@ -1,8 +1,10 @@
 name: pages
 
-# Publishes VST Ride-along (companion/ride), the phone GPS recorder for calibration, on GitHub Pages. It has to
-# be on https: browsers only give GPS to secure pages, and VST Studio serves the companion over plain http on the
-# home network. Only that folder is published; nothing else in the repository is.
+# Publishes the project's home page on GitHub Pages (https://joekiller.github.io/VSTStudio/): the splash page from
+# site/, the companion at /companion/ (on https it is the demo; see companion/README.md) and VST Ride-along, the
+# phone GPS recorder for calibration drives, at /ride/.  Ride-along has to be on https: browsers only give GPS to
+# secure pages, and VST Studio serves the companion over plain http on the home network.
+# site/assemble.sh builds the folder, the same way for a local preview.
 #
 # One-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
 on:
@@ -10,7 +12,10 @@ on:
     branches: [main]
     paths:
       - .github/workflows/pages.yml
-      - companion/ride/**
+      - site/**
+      - companion/**
+      - docs/images/studio/**
+      - docs/images/companion/**
   workflow_dispatch:
 
 permissions:
@@ -24,15 +29,16 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/configure-pages@v5
+      - run: site/assemble.sh _site
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: companion/ride
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

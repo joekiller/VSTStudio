@@ -26,6 +26,7 @@ Raspberry Pi.
 ## Get started
 
 1. **Download** the package for your computer from the
+   [home page](https://joekiller.github.io/VSTStudio/#download) or the
    [latest release](https://github.com/joekiller/VSTStudio/releases/latest) and install it
    ([which file?](docs/install.md)).
 2. **Open VST Studio.** No camera yet? **Watch the sample measure** on the first page plays a 2016 recording of a real
