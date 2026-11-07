@@ -86,6 +86,10 @@ public:
 	// (subFrameSpeed()), as in a short view, rather than from counting frames between the lines.
 	void markEnteredAtEdge() { fitTiming = true; }
 
+	// The fastest its front bumper has been seen to move, in pixels a frame pair, once it has been seen often enough to
+	// know (kLeapSightings sightings); -1 until then.  A walker's is a few pixels, a car's tens to hundreds.
+	int pairAdvance() const;
+
 	int getFinalSpeed();
 	// Seconds the front bumper took between the speed lines, from the same timing as getFinalSpeed() (0 = not timed).  Speed =
 	// zone length / this, so a later calibration of the same view can re-time the car exactly (csv ZoneSeconds; CalSets.h).
@@ -111,6 +115,10 @@ private:
 	int subFrameSpeed(Globals& g, direction dir);
 	void computeTrend(Globals& g, direction dir);
 	statusTypes estimateNextVehicleData(Globals& g, int FrameNum);
+	bool leapsAhead(Globals& g, double x, int frame) const;  // a sighting further on than this vehicle could have got (see the .cpp)
+	double hiddenFrontBumper(Globals& g, double projected, int frame) const;  // the front bumper to fit when the one seen isn't believed
+	double fastestSeen() const;  // px a frame, the fastest the front bumper has been seen to move
+	static constexpr size_t kLeapSightings = 4;  // sightings needed before leapsAhead() judges one
 
 
 

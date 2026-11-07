@@ -1395,6 +1395,20 @@ static Mat laneView(const Mat& thresh, bool leftToRight){
 	return masked;
 }
 
+// How far ahead of an oncoming vehicle's projected front bumper the other end of the box is kept clear of new vehicles, so
+// that the oncoming one's own leading blob isn't taken for a vehicle coming in the other way.  It was always two entry
+// look-aheads (2 x maxDistOnEntry: 150 px in the 2016 view, but 834 px, two thirds of the picture, in a 20 ft short view).
+// So in a short view a walker on the near sidewalk, tracked from one edge, shut the other end of the box to every car
+// until they had walked out of the picture: with a walker crossing, the synthetic 20 ft clip of tests/pedestrian.cmake
+// timed 12 of 33 legal cars.  Once the oncoming vehicle's speed is known (VehicleDynamics::pairAdvance()), the clear
+// stretch is what it could cover in two frame pairs at twice that speed, plus margin(40), and never more than before:
+// a car at 25 mph in the 2016 view keeps all 150 px, a walker in a short view keeps about 300 px instead of 834.
+static int oncomingLead(const VehicleDynamics& oncoming, int maxDistOnEntry, bool oncomingL2R){
+	int advance = oncoming.pairAdvance();
+	if (advance < 0) return 2 * maxDistOnEntry;
+	return min(2 * maxDistOnEntry, 4 * advance + g.margin(40, oncomingL2R));
+}
+
 bool manageMovers(Mat wholeScenethreshImage, Mat &AnalysisFrame){
 
 /// < < < < < < < < < < < < < < < < < < < < < < < < < < G e t   P r o j e c t i o n s   f o r   v e h s   a l r e a d y   i n   t r a c k  > > > > > > > > > > > > > > > > 
@@ -1614,7 +1628,7 @@ bool manageMovers(Mat wholeScenethreshImage, Mat &AnalysisFrame){
 		int safeL2RZone = g.pixelRight - g.pixelLeft;
 		int safeR2LZone = g.pixelRight - g.pixelLeft;
 		// "6" and "2" in following if statements can be tweaked.  I'm happy with their current values.
-		if (projectedR2L.size() > 0) safeR2LZone = max(projectedR2L.front().getBox().x - (2 * g.maxL2RDistOnEntry), 0);  // Identify safe range to front of oncoming car.
+		if (projectedR2L.size() > 0) safeR2LZone = max(projectedR2L.front().getBox().x - oncomingLead(vehiclesGoingLeft.front(), g.maxL2RDistOnEntry, false), 0);  // Identify safe range to front of oncoming car.
 		if (projectedL2R.size() > 0) safeL2RZone = max(projectedL2R.back().getBox().x - (6 * g.maxL2RDistOnEntry), 0);  // Identify safe range to rear of preceding car.
 
 		if (safeL2RZone > 0 && safeR2LZone > 0){
@@ -1634,7 +1648,7 @@ bool manageMovers(Mat wholeScenethreshImage, Mat &AnalysisFrame){
 		safeR2LZone = g.pixelRight - g.pixelLeft;
 		 // "6" and "2" in following if statements can be tweaked.  I'm happy with their current values.
 		if (projectedR2L.size() > 0)  safeR2LZone = max(g.pixelRight - (projectedR2L.back().getBox().x + projectedR2L.back().getBox().width + (6 * g.maxR2LDistOnEntry)), 0);   // Identify safe range to rear of preceding car.
-		if (projectedL2R.size() > 0) safeL2RZone = max(g.pixelRight - (projectedL2R.front().getBox().x + projectedL2R.front().getBox().width + (2 * g.maxR2LDistOnEntry)), 0);  // Identify safe range to front of oncoming car.
+		if (projectedL2R.size() > 0) safeL2RZone = max(g.pixelRight - (projectedL2R.front().getBox().x + projectedL2R.front().getBox().width + oncomingLead(vehiclesGoingRight.front(), g.maxR2LDistOnEntry, true)), 0);  // Identify safe range to front of oncoming car.
 
 		if (safeR2LZone > 0 && safeL2RZone > 0){
 			coalescedRectangle = coalesce(objectBoundingRectangleR2L, numOKSizeObjectsR2L,

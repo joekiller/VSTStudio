@@ -26,6 +26,7 @@
 #include "VehicleDynamics.h"
 #include "Globals.h"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <numeric>
 #include <vector>
@@ -178,14 +179,36 @@ int VehicleDynamics::subFrameSpeed(Globals& g, direction dir){
 			along.push_back(g.zoneFraction(l2r, seenFBPixel[i]));
 		}
 	if (frames.size() < 3) return -1;
-	vector<double> fit = getLinearFit(frames, along);
-	double slope = fit[0];  // zone widths per frame; + for L2R, - for R2L
-	if ((l2r && slope <= 0) || (!l2r && slope >= 0)) return -1;
-	double sumSq = 0;
-	for (size_t i = 0; i < frames.size(); i++) sumSq += pow(along[i] - (slope * frames[i] + fit[1]), 2);
+	// The fit, and how far (pixels rms) the sightings stray from it.
+	vector<double> fit;
+	auto strayPx = [&](){
+		fit = getLinearFit(frames, along);
+		double sumSq = 0;
+		for (size_t i = 0; i < frames.size(); i++) sumSq += pow(along[i] - (fit[0] * frames[i] + fit[1]), 2);
+		return sqrt(sumSq / frames.size()) * zonePx;
+	};
 	// Not one vehicle moving steadily: usually two merged, or a lost track picked up again.  The limit is margin(4) pixels
 	// expressed in zone widths, so with no streetEdge it is exactly the old pixel test.
-	if (sqrt(sumSq / frames.size()) * zonePx > g.margin(4, l2r)) return -1;
+	// One exception: with five or more sightings, a single one far off the line is set aside and the rest tried again.  In
+	// a short view a car passing a walker on the near sidewalk is seen merged with them for a frame pair (its front bumper
+	// read at the walker's far side), and that one sighting used to cost the car its speed: in the synthetic 20 ft clips of
+	// tests/pedestrian.cmake, most legal cars that met the walker inside the zone.  The rest must then lie on a line to
+	// within half the usual limit, margin(2) px: one clean vehicle with one bad sighting, not a car that sped up out of a
+	// walker's blob (on the 15 ft sample crop the looser margin(4) took one such track and timed it 4 mph off).
+	if (strayPx() > g.margin(4, l2r)){
+		if (frames.size() < 5) return -1;
+		size_t worst = 0;
+		double worstOff = -1;
+		for (size_t i = 0; i < frames.size(); i++){
+			double off = abs(along[i] - (fit[0] * frames[i] + fit[1]));
+			if (off > worstOff){ worstOff = off; worst = i; }
+		}
+		frames.erase(frames.begin() + worst);
+		along.erase(along.begin() + worst);
+		if (strayPx() > g.margin(2, l2r)) return -1;
+	}
+	double slope = fit[0];  // zone widths per frame; + for L2R, - for R2L
+	if ((l2r && slope <= 0) || (!l2r && slope >= 0)) return -1;
 	double zoneFrames = 1 / abs(slope);
 	zoneSeconds = g.videoFPS > 0 ? zoneFrames / g.videoFPS : 0;
 	double calibrationFrames = (dir == L2R ? g.CalibrationFramesL2R : g.CalibrationFramesR2L) * g.videoFPS / g.CalibrationFPS;
@@ -237,6 +260,68 @@ void VehicleDynamics::computeTrend(Globals& g, direction dir){
 			feet.push_back((l2r ? f : 1 - f) * zoneFt);
 		}
 	trend = vst::speedTrend(secs, feet, zoneFt, ftPerPx, g.margin(4, l2r) * ftPerPx, finalSpeed > 0 ? double(finalSpeed) : 0);
+}
+
+// Private function: the fastest the front bumper has moved, in pixels a frame in the direction of travel, between
+// successive sightings (seenFBPixel); 0 with fewer than two.
+double VehicleDynamics::fastestSeen() const {
+	const double sign = vehicleDirection == L2R ? 1.0 : -1.0;
+	double fastest = 0;
+	for (size_t i = 1; i < seenFBPixel.size(); i++){
+		double frames = seenFBFrame[i] - seenFBFrame[i - 1];
+		if (frames > 0) fastest = max(fastest, sign * (seenFBPixel[i] - seenFBPixel[i - 1]) / frames);
+	}
+	return fastest;
+}
+
+int VehicleDynamics::pairAdvance() const {
+	if (seenFBPixel.size() < kLeapSightings) return -1;
+	return int(2 * fastestSeen() + 0.5);
+}
+
+// Private function: is a front bumper seen at x in frame `frame` further ahead of the last one seen than this vehicle could
+// have got?  A walker on the near sidewalk of a short view is as tall in the picture as the lane, so when a car comes the
+// other way their blobs touch, and the walker's track, which takes every blob it overlaps (coalesce(), greedy), suddenly
+// "sees" its front bumper hundreds of pixels on: the far end of the car's blob, or where the search window cut it off.
+// Believed, that one sighting steepens the front-bumper fit, the projection runs ahead of the walker, every true sighting
+// after it reads as backward motion and is replaced by the projection, and the projection alone carries the track across
+// both speed lines: a walker logged as an 18-45 mph wrong-way car (tests/pedestrian_merge_test.cpp).
+// A vehicle's speed can't change much in a frame pair, so once it has been seen kLeapSightings times (past the first two,
+// which can be a blob still growing out of the box's edge; see subFrameSpeed()), a sighting is not believed when it is
+// ahead of the last one by more than twice the fastest advance seen so far, plus margin(20) for a ragged blob edge: a car
+// at 25 mph in the 2016 view moves ~32 px a frame pair and is allowed ~84; a walker's ~4 px allows ~28.  Not believing it
+// treats the bumper as hidden for that frame pair, as an oncoming car or obstruction would (hiddenFrontBumper()).
+bool VehicleDynamics::leapsAhead(Globals& g, double x, int frame) const {
+	const size_t n = seenFBPixel.size();
+	if (n < kLeapSightings) return false;
+	const bool l2r = vehicleDirection == L2R;
+	const double sign = l2r ? 1.0 : -1.0;
+	const double fastest = fastestSeen();  // px per frame, in the direction of travel
+	double frames = frame - seenFBFrame[n - 1];
+	if (frames <= 0) return false;
+	double advance = sign * (x - seenFBPixel[n - 1]);
+	return advance > frames * 2 * fastest + g.margin(20, l2r);
+}
+
+// Private function: the front bumper to fit, in frame `frame`, when the one seen can't be believed (hidden by an oncoming
+// car or an obstruction, apparently moving backwards, or leapsAhead()).  It used to be the last projection, whatever it
+// was.  Early in a track that projection is mostly entry look-ahead (maxDistOnEntry, hundreds of pixels in a short view),
+// so a walker whose front was "hidden" by a car coming the other way got a front bumper far ahead of where they were; the
+// fit steepened, the next projection was further ahead still, and the track ran across the zone on projections alone.
+// So when the projection is more than margin(20) ahead of a straight line through the last front bumpers actually seen,
+// that line is used instead; with fewer than three seen there is nothing to go on and the projection stands.  For a car
+// tracked steadily the two are within a few pixels and nothing changes (the 2016 sample's 61 speeds are the same).
+double VehicleDynamics::hiddenFrontBumper(Globals& g, double projected, int frame) const {
+	const size_t n = seenFBPixel.size();
+	if (n < 3) return projected;
+	const size_t from = n > 8 ? n - 8 : 0;  // the same piecewise window as the front-bumper fit
+	vector<double> f(seenFBFrame.begin() + from, seenFBFrame.end()), x(seenFBPixel.begin() + from, seenFBPixel.end());
+	vector<double> fit = getLinearFit(f, x);
+	if (!std::isfinite(fit[0]) || !std::isfinite(fit[1])) return projected;
+	const bool l2r = vehicleDirection == L2R;
+	double seen = fit[0] * frame + fit[1];
+	double lead = l2r ? projected - seen : seen - projected;  // how far the projection is ahead of the seen bumpers
+	return lead > g.margin(20, l2r) ? seen : projected;
 }
 
 //Private function
@@ -493,8 +578,9 @@ statusTypes VehicleDynamics::estimateNextVehicleData(Globals& g, int frameNum){
 				// Check for obstructions or apparent backward motion of front bumper raw data
 				if ((int(prevNextFrontBumper) >= g.obstruction[0]) && (int(prevNextFrontBumper) <= (g.obstruction[1] + g.obstruction_extent))
 					|| ((lastObservedBox.x + lastObservedBox.width) < (nextToLastBox.x + nextToLastBox.width + int(estVelocity / 2.0))) // Unacceptable backwards motion of actual data
-					|| (overlapStatus == frontOnly || overlapStatus == bothOverlap)){
-					FBPixel.push_back(prevNextFrontBumper);  // 
+					|| (overlapStatus == frontOnly || overlapStatus == bothOverlap)
+					|| leapsAhead(g, double(lastObservedBox.x + lastObservedBox.width), lastObservedFrame)){  // another mover's blob, not this one's bumper
+					FBPixel.push_back(hiddenFrontBumper(g, prevNextFrontBumper, snaps.back().getFrameNum()));  // not past what the seen bumpers say
 					//					cout << " * * * * * * * * * * * * * * L2R front bumper moved backwards or it was occluded." << endl;
 				}
 				else {
@@ -505,8 +591,9 @@ statusTypes VehicleDynamics::estimateNextVehicleData(Globals& g, int frameNum){
 			case R2L:   //  R2L <<<<<
 				if ((int(prevNextFrontBumper) >= (g.obstruction[0] - g.obstruction_extent)) && (int(prevNextFrontBumper) <= g.obstruction[1])
 					|| (lastObservedBox.x > (nextToLastBox.x - int(estVelocity / 2.0))) // Unacceptable backwards motion of actual data
-					|| (overlapStatus == frontOnly || overlapStatus == bothOverlap)){
-					FBPixel.push_back(double(prevNextFrontBumper));
+					|| (overlapStatus == frontOnly || overlapStatus == bothOverlap)
+					|| leapsAhead(g, double(lastObservedBox.x), lastObservedFrame)){  // see L2R above
+					FBPixel.push_back(hiddenFrontBumper(g, prevNextFrontBumper, snaps.back().getFrameNum()));  // see L2R above
 					//					cout << " * * * * * * * * * * * * * * R2L front bumper moved backwards or it was occluded." << endl;
 				}
 				else {

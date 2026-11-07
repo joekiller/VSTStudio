@@ -16,6 +16,7 @@ in for you.
 | Cruise control won't hold 15 or 20 mph | Drive at any steady speed and let a phone running VST Ride-along, or a Tesla's dashcam, record the speed. |
 | The phone can't reach VST Studio | The phone has to be on the same Wi-Fi as the computer. On Windows, installing *for everyone* opens the firewall for it. On a computer with several networks, pick the address on the phone's network on the Companion page. |
 | **Camera moved?** warning | The view shifted. Re-aim the camera and redraw the zones, or press **It's fine, use this view**. |
+| A person on the near sidewalk showed up as a fast wrong-way car | In a close view a walker stands taller in the picture than the lane, and up to v2.0.0 a walker coming in at one edge as a car came in at the other could be logged as a wrong-way car at 18-45 mph. VST now only believes front-bumper sightings a vehicle could really have made, so this no longer happens, and cars passing a walker are timed more often. If one still gets through, run the clip with `--trace trace.txt` and [open an issue](https://github.com/joekiller/VSTStudio/issues/new) with the trace. |
 | Speeds all look off by about the same factor | The calibration is off. Run **Check it with a second drive** on the Calibrate step; it lists the usual causes. |
 
 ## Cameras and video
