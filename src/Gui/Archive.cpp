@@ -525,7 +525,9 @@ summary{cursor:pointer;font-weight:600}td.band{border-left:5px solid transparent
 </main>
 <script id="data" type="application/json">@DATA@</script>
 <script id="dataset" type="application/json">@DATASET@</script>
-<script>
+)HTML"
+	// Two literals, not one: MSVC rejects a single string literal over 16 KB (C2026).
+	R"HTML(<script>
 const A=JSON.parse(document.getElementById('data').textContent),L=A.speedLimit,W=A.wayOver;
 const V=A.vehicles.map((v,i)=>Object.assign({n:i+1},v));
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
