@@ -83,7 +83,7 @@ fs::path dataPath(const string& dataPathPrefix){
 
 // Installed file locations, relative to the executable:
 //   <exe dir>/rel                          Windows zip / installer / MSIX (flat layout)
-//   <exe dir>/../share/videospeedtracker/  .deb (/usr/bin -> /usr/share) and other FHS prefixes
+//   <exe dir>/../share/vststudio/          .deb (/usr/bin -> /usr/share) and other FHS prefixes
 //   <exe dir>/../Resources/                macOS VSTStudio.app, for VSTStudio and the command-line tools alike: all
 //                                          three live in Contents/MacOS (a symlink to one, e.g. in Homebrew's bin,
 //                                          works too, since executableDir() resolves links)
@@ -91,7 +91,7 @@ fs::path installedFile(const string& rel){
 	fs::path exe = executableDir();
 	if (exe.empty()) return {};
 	fs::path r = fs::path(rel).make_preferred();
-	for (const fs::path& candidate : { exe / r, exe / ".." / "share" / "videospeedtracker" / r, exe / ".." / "Resources" / r }){
+	for (const fs::path& candidate : { exe / r, exe / ".." / "share" / "vststudio" / r, exe / ".." / "Resources" / r }){
 		error_code ec;
 		if (fs::is_regular_file(candidate, ec)) return fs::weakly_canonical(candidate, ec);
 	}
@@ -122,25 +122,45 @@ void holdConsoleOnExit(){ atexit(pauseIfOwnConsole); }
 void holdConsoleOnExit(){}
 #endif
 
+namespace {
+// Folders from before the VST Studio rename (v1.x was VideoSpeedTracker) are kept where they are.
+//
+// A v1 VST.cfg names its data folder by absolute path (seedConfig wrote dataDir() into dataPathPrefix), and
+// vst-studio.ini, calibration sets and saved runs name files in the config folder the same way, so moving or
+// copying the folders would leave those paths pointing at nothing.  Instead, while the new folder doesn't exist
+// and the old one does, the old one IS the folder: an upgrade keeps every setting, calibration and run, and a
+// fresh install uses the new name.  Nothing here ever moves, copies or deletes a user's files.
+fs::path adopt(const fs::path& current, const fs::path& before){
+	error_code ec;
+	if (!fs::exists(current, ec) && fs::is_directory(before, ec)) return before;
+	return current;
+}
+}  // namespace
+
 fs::path configDir(){
 #if defined(_WIN32)
-	return knownFolder(FOLDERID_RoamingAppData) / "VideoSpeedTracker";
+	fs::path base = knownFolder(FOLDERID_RoamingAppData);
+	return adopt(base / "VSTStudio", base / "VideoSpeedTracker");
 #elif defined(__APPLE__)
-	return home() / "Library" / "Application Support" / "VideoSpeedTracker";
+	fs::path base = home() / "Library" / "Application Support";
+	return adopt(base / "VSTStudio", base / "VideoSpeedTracker");
 #else
 	fs::path xdg = absoluteEnv("XDG_CONFIG_HOME");
-	return (xdg.empty() ? home() / ".config" : xdg) / "videospeedtracker";
+	fs::path base = xdg.empty() ? home() / ".config" : xdg;
+	return adopt(base / "vststudio", base / "videospeedtracker");
 #endif
 }
 
 fs::path dataDir(){
 #if defined(_WIN32)
-	return knownFolder(FOLDERID_LocalAppData) / "VideoSpeedTracker";
+	fs::path base = knownFolder(FOLDERID_LocalAppData);
+	return adopt(base / "VSTStudio", base / "VideoSpeedTracker");
 #elif defined(__APPLE__)
-	return configDir() / "Data";
+	return configDir() / "Data";   // inside the config folder, so it follows that folder's choice
 #else
 	fs::path xdg = absoluteEnv("XDG_DATA_HOME");
-	return (xdg.empty() ? home() / ".local" / "share" : xdg) / "videospeedtracker";
+	fs::path base = xdg.empty() ? home() / ".local" / "share" : xdg;
+	return adopt(base / "vststudio", base / "videospeedtracker");
 #endif
 }
 

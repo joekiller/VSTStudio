@@ -42,7 +42,7 @@ template <class T> static std::string show(const T& v) {
 
 static bool contains(const std::string& s, const std::string& what) { return s.find(what) != std::string::npos; }
 
-static const char* kConfig = "/home/joe/.config/videospeedtracker/VST.cfg";
+static const char* kConfig = "/home/joe/.config/vststudio/VST.cfg";
 
 static Input fixtureInput(const fs::path& dir) {
 	Input in;
@@ -198,7 +198,7 @@ static void testFixtureAllData(const fs::path& fx, const fs::path& out) {
 	CHECK(contains(html, "Estimated coverage"));
 	CHECK(contains(html, "Capture rate"));
 	CHECK(contains(html, "nearest-rank"));
-	CHECK(contains(html, "VideoSpeedTracker 1.2.0"));
+	CHECK(contains(html, "VST Studio 1.2.0"));
 	CHECK(!contains(html, "Example frames"));       // snapshots are off by default
 	CHECK(contains(html, "@media print"));
 }

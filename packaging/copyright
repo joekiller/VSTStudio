@@ -1,14 +1,15 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: VideoSpeedTracker
 Upstream-Contact: Paul Reynolds <reynolds@virginia.edu>
-Source: https://github.com/joekiller/VideoSpeedTracker
-Comment: Fork of https://github.com/pfr/VideoSpeedTracker. The binaries link OpenCV
+Source: https://github.com/joekiller/VSTStudio
+Comment: VST Studio, built on https://github.com/pfr/VideoSpeedTracker. The binaries link OpenCV
  (Apache-2.0) statically; its license and the notices for the third-party code it
- bundles are in /usr/share/doc/videospeedtracker/opencv. FFmpeg and GTK are linked
+ bundles are in /usr/share/doc/vststudio/opencv. FFmpeg and GTK are linked
  from the distribution's packages, which carry their own copyright files.
 
 Files: *
 Copyright: 2016 Paul Reynolds
+           2026 Joe Lawson
 License: BSD-3-Clause
 
 License: BSD-3-Clause

@@ -1,7 +1,7 @@
 {
   "name": "VST Companion",
   "short_name": "VST",
-  "description": "Live view, recent speeders and wrong-way drivers, remote calibration and sharing for VideoSpeedTracker.",
+  "description": "Live view, recent speeders and wrong-way drivers, remote calibration and sharing for VST Studio.",
   "id": "./",
   "start_url": "./#/live",
   "scope": "./",

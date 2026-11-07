@@ -1,6 +1,6 @@
 # VST Companion (experimental)
 
-A phone app for VideoSpeedTracker. Point your phone at the QR code in VST Studio and you can:
+A phone app for VST Studio. Point your phone at the QR code in VST Studio and you can:
 
 * **Watch live**: the camera with the speed zone drawn on top, each vehicle's speed as it crosses, and today's counts.
 * **See every pass**: speeders and wrong-way drivers called out, with a snapshot and a short clip of each.
@@ -90,4 +90,4 @@ starts itself, or against a running VST Studio with `BASE=http://<ip>:8787 TOKEN
 ### Packaging
 
 `cmake --install` copies this folder (minus `dev/`, `test/` and this README) next to the program: `companion/` beside the
-executable on Windows and macOS, `share/videospeedtracker/companion/` on Linux.
+executable on Windows and macOS, `share/vststudio/companion/` on Linux.

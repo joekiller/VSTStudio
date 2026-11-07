@@ -1,4 +1,4 @@
-; Windows installer for VideoSpeedTracker (Inno Setup 6, preinstalled on GitHub's windows-2022 runners).
+; Windows installer for VST Studio (Inno Setup 6, preinstalled on GitHub's windows-2022 runners).
 ;
 ; Built by .github/workflows/release.yml from the staged install (cmake --install, plus the FFmpeg plugin DLL),
 ; after the exes inside it are signed; the setup exe is then signed too.  By hand:
@@ -11,7 +11,7 @@
 ;     the files in place.
 ;   * A Start-menu "VST Studio" shortcut (and an optional desktop one), started in the user's home folder rather
 ;     than the install folder: VST looks for VST.cfg in the folder it starts in first, and the VST.cfg installed
-;     there is only the template for the per-user copy (%APPDATA%\VideoSpeedTracker\VST.cfg).
+;     there is only the template for the per-user copy (%APPDATA%\VSTStudio\VST.cfg).
 ;   * For an all-users install, a Windows Firewall rule letting VST Studio's companion server answer phones on
 ;     private networks (home Wi-Fi) only.  A per-user install can't add one; Windows asks the first time the
 ;     companion is turned on instead.
@@ -33,17 +33,18 @@
 
 [Setup]
 AppId={{6F1C2A57-93D8-4B0E-A7C4-5E2D9B81F340}
-AppName=VideoSpeedTracker
+AppName=VST Studio
 AppVersion={#AppVersion}
-AppVerName=VideoSpeedTracker {#AppVersion}
+AppVerName=VST Studio {#AppVersion}
 AppPublisher=Joe Lawson
-AppPublisherURL=https://github.com/joekiller/VideoSpeedTracker
-AppSupportURL=https://github.com/joekiller/VideoSpeedTracker/issues
+AppPublisherURL=https://github.com/joekiller/VSTStudio
+AppSupportURL=https://github.com/joekiller/VSTStudio/issues
 AppComments=Measure the speed of traffic on your street with a camera and VST Studio.
 VersionInfoVersion={#NumericVersion}
-VersionInfoProductName=VideoSpeedTracker
-DefaultDirName={autopf}\VideoSpeedTracker
-DefaultGroupName=VideoSpeedTracker
+VersionInfoProductName=VST Studio
+; A v1 install (named VideoSpeedTracker, same AppId) is upgraded in its own folder: UsePreviousAppDir is on by default.
+DefaultDirName={autopf}\VSTStudio
+DefaultGroupName=VST Studio
 DisableProgramGroupPage=yes
 DisableWelcomePage=no
 PrivilegesRequired=lowest
@@ -54,9 +55,9 @@ MinVersion=10.0
 LicenseFile={#SourceDir}\LICENSE.txt
 SetupIconFile=vst-studio.ico
 UninstallDisplayIcon={app}\VSTStudio.exe
-UninstallDisplayName=VideoSpeedTracker {#AppVersion}
+UninstallDisplayName=VST Studio {#AppVersion}
 OutputDir={#OutputDir}
-OutputBaseFilename=VideoSpeedTracker-{#AppVersion}-windows-x64-setup
+OutputBaseFilename=VSTStudio-{#AppVersion}-windows-x64-setup
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

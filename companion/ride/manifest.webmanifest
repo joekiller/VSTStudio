@@ -1,7 +1,7 @@
 {
   "name": "VST Ride-along",
   "short_name": "Ride-along",
-  "description": "Record your car's GPS speed on your phone to calibrate VideoSpeedTracker.",
+  "description": "Record your car's GPS speed on your phone to calibrate VST Studio.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

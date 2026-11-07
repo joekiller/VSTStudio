@@ -57,7 +57,7 @@ export async function render({ vst, view, prefs, start }) {
         ${live ? html`<button class="btn" id="demo">${icon('sparkle')}Try the demo</button>` : html`<button class="btn primary" id="real">${icon('wifi')}Connect to my VST</button>`}
         <button class="btn danger" id="forget">${live ? 'Unpair this phone' : 'Leave demo'}</button>
       </div>
-      <p class="small muted" style="margin-top:24px">VST Companion is part of <a href="https://github.com/joekiller/VideoSpeedTracker">VideoSpeedTracker</a>, open source under the BSD license. Data stays on your network.</p>`.__html;
+      <p class="small muted" style="margin-top:24px">VST Companion is part of <a href="https://github.com/joekiller/VSTStudio">VST Studio</a>, built on Paul Reynolds' 2016 <a href="https://github.com/pfr/VideoSpeedTracker">VideoSpeedTracker</a>, open source under the BSD license. Data stays on your network.</p>`.__html;
 
     if (refocus) view.querySelector(refocus)?.focus();
     $('#run').onclick = async (e) => {
@@ -73,7 +73,7 @@ export async function render({ vst, view, prefs, start }) {
         <h2>Before you share</h2>
         <div class="check">${icon('camera')}<p><b>Clips and snapshots can show plates, faces and homes.</b> Look before you post, and think about who is in the picture.</p></div>
         <div class="check">${icon('lock')}<p><b>Nothing is uploaded by VST.</b> Share opens your phone's share sheet; it goes only where you send it.</p></div>
-        <div class="check">${icon('gauge')}<p><b>Speeds are estimates.</b> Cards say "measured with VideoSpeedTracker", not that anyone broke the law.</p></div>
+        <div class="check">${icon('gauge')}<p><b>Speeds are estimates.</b> Cards say "measured with VST Studio", not that anyone broke the law.</p></div>
         <div class="btn-row" style="margin-top:16px"><button class="btn" data-v="0">Not now</button><button class="btn primary" data-v="1">Turn on sharing</button></div>`,
       (el, close) => $$('[data-v]', el).forEach((b) => b.onclick = () => close(b.dataset.v === '1')));
       if (ok) { prefs.set('sharing', true); toast('Sharing is on for this phone'); }

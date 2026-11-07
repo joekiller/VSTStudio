@@ -1,7 +1,7 @@
 # VST Studio
 
-VST Studio is the desktop app for VideoSpeedTracker. It runs the same tracker as the `VideoSpeedTracker` command
-line, and replaces hand-editing `VST.cfg` with a guided setup: plan the camera position, draw the zones on the
+VST Studio is the desktop app built on Paul Reynolds' 2016 VideoSpeedTracker. It runs the same tracker as the
+`VideoSpeedTracker` command line, and replaces hand-editing `VST.cfg` with a guided setup: plan the camera position, draw the zones on the
 picture, calibrate with one drive past and check it with a second, then watch vehicles get measured and review the speeders and wrong-way
 drivers. It ships in every release package next to the command-line tools (`VSTStudio`, or **VST Studio** in
 the Windows Start menu and the Linux applications menu).
@@ -342,7 +342,7 @@ You can drive past at any steady speed and let a recording supply the speed, ins
 
 - **A Tesla's dashcam.** Teslas on software 2025.44.25 or later (HW3 and newer) record the car's speed in every
   dashcam frame. Use the `-front.mp4` clip for that minute from the USB drive's `TeslaCam` folder.
-- **Any phone, with VST Ride-along.** Open [joekiller.github.io/VideoSpeedTracker](https://joekiller.github.io/VideoSpeedTracker/)
+- **Any phone, with VST Ride-along.** Open [joekiller.github.io/VSTStudio](https://joekiller.github.io/VSTStudio/)
   on the phone (add it to the home screen and it works with no signal), pick your target speed (it shows on target,
   too fast or too slow while you drive), tap **Start recording** before you set off,
   drive past, then **Stop** and save the `.csv` to the computer. It records the phone's GPS position and speed, which
@@ -396,8 +396,8 @@ from it, so it survives restarts.
 
 ```
 Timestamp, Config, Kind, Direction, DrivenMph, Frames, Fps, CalibrationFrames, MeasuredMph, Error
-2026-11-02T10:14:03-05:00, /home/joe/.config/videospeedtracker/VST.cfg, apply, L2R, 25, 34, 30, 34, ,
-2026-11-02T10:21:40-05:00, /home/joe/.config/videospeedtracker/VST.cfg, check, L2R, 30, 28, 30, 34, 30.4, 0.4
+2026-11-02T10:14:03-05:00, /home/joe/.config/vststudio/VST.cfg, apply, L2R, 25, 34, 30, 34, ,
+2026-11-02T10:21:40-05:00, /home/joe/.config/vststudio/VST.cfg, check, L2R, 30, 28, 30, 34, 30.4, 0.4
 ```
 
 - **Config** is the `VST.cfg` the row belongs to; one file serves every config on the computer.

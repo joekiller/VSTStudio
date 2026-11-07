@@ -1,6 +1,6 @@
 # Building, testing and releasing
 
-For contributors and anyone who wants to build VideoSpeedTracker themselves. To *use* it, download a release
+For contributors and anyone who wants to build VST Studio themselves. To *use* it, download a release
 instead ([Installing](install.md)).
 
 ## What's where

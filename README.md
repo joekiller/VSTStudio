@@ -1,6 +1,10 @@
-# VideoSpeedTracker
+# VST Studio
 
-**Measure the traffic on your own street with a camera in your window.** VideoSpeedTracker (VST) times every car that
+> VST Studio is built on [VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker), written in 2016 by
+> [Paul Reynolds](https://www.cs.virginia.edu/~pfr) to measure speeding on Locust Avenue in Charlottesville. Until
+> v2.0.0 this project was called VideoSpeedTracker too; [see below](#built-on-videospeedtracker).
+
+**Measure the traffic on your own street with a camera in your window.** VST Studio (VST) times every car that
 passes, calls out speeders and wrong-way drivers on one-way streets, and turns weeks of measurements into a report
 your neighbors, city staff and council can read. It is free, open source, and runs on Windows, macOS, Linux and the
 Raspberry Pi.
@@ -22,7 +26,7 @@ Raspberry Pi.
 ## Get started
 
 1. **Download** the package for your computer from the
-   [latest release](https://github.com/joekiller/VideoSpeedTracker/releases/latest) and install it
+   [latest release](https://github.com/joekiller/VSTStudio/releases/latest) and install it
    ([which file?](docs/install.md)).
 2. **Open VST Studio.** No camera yet? **Watch the sample measure** on the first page plays a 2016 recording of a real
    street, so you can watch cars get measured first.
@@ -61,17 +65,19 @@ accurate its speeds are and how the calibration was checked.
 
 - [Building, testing and releasing](docs/building.md), and [code signing](docs/code-signing.md).
 
-## Where it came from
+## Built on VideoSpeedTracker
 
 VideoSpeedTracker was created in 2016 by [Paul Reynolds](https://www.cs.virginia.edu/~pfr), a retired University of
 Virginia computer science professor, to measure speeding on Locust Avenue in Charlottesville, Virginia. He shared his
 data with the city and council, measured the city's own traffic-calming pilot, and published the software so any
-neighborhood could do the same. This project, a fork of his
-[pfr/VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker), keeps his tracker at its heart and builds on it for
-narrower streets, more cameras and people with no technical background.
+neighborhood could do the same. VST Studio began as a fork of his
+[pfr/VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker). It keeps his tracker and his calibration method at
+its heart, still as the `VideoSpeedTracker` program, and builds on them for narrower streets, more cameras and people
+with no technical background. It was renamed VST Studio at v2.0.0; v1 releases and their downloads keep the old name.
 [Where VideoSpeedTracker came from](docs/history/README.md) tells the story, what it teaches about working with your
 city, and keeps the original 2016 README, manual and council briefing.
 
 ## License
 
-BSD 3-Clause ([LICENSE](LICENSE)). Copyright Paul Reynolds, 2016; later contributions are under the same license.
+BSD 3-Clause ([LICENSE](LICENSE)). Copyright Paul Reynolds, 2016; later contributions copyright Joe Lawson, 2026, under
+the same license.

@@ -94,8 +94,8 @@ json_error() {
 # ---- a throwaway home with the app's preferences -----------------------------------------------------
 
 rm -rf "$OUT"
-mkdir -p "$OUT/home" "$OUT/config/videospeedtracker" "$OUT/data" "$OUT/cwd"
-cp "$SRC/bin/VST.cfg" "$OUT/VST.cfg"   # blank dataPathPrefix: data goes to $XDG_DATA_HOME/videospeedtracker
+mkdir -p "$OUT/home" "$OUT/config/vststudio" "$OUT/data" "$OUT/cwd"
+cp "$SRC/bin/VST.cfg" "$OUT/VST.cfg"   # blank dataPathPrefix: data goes to $XDG_DATA_HOME/vststudio
 
 # A free port: try random ones until nothing answers (bash's /dev/tcp connects, or fails if the port is closed).
 for _ in $(seq 20); do
@@ -106,7 +106,7 @@ BASE=http://127.0.0.1:$PORT
 
 # Key names are AppPrefs::load()'s (src/Gui/Settings.cpp).  realtime=0 runs the video as fast as it decodes;
 # highlights=0 skips the highlights video, which the API doesn't need.
-cat > "$OUT/config/videospeedtracker/vst-studio.ini" <<EOF
+cat > "$OUT/config/vststudio/vst-studio.ini" <<EOF
 config = $OUT/VST.cfg
 source = $SAMPLE
 guideDone = 1
@@ -328,9 +328,9 @@ grep -q "Vehicles logged</dt><dd class='num'>$EXPECTED<" "$OUT/body" && pass "it
   || fail "the report doesn't count $EXPECTED vehicles: $(grep -o "Vehicles logged</dt><dd[^<]*<" "$OUT/body")"
 grep -qE 'https?://' "$OUT/body" && fail "the report references an external URL" || pass "the report is self-contained"
 # The sample keeps its results, and so a report made on it, in the data folder's Sample/, away from the user's own street.
-ls "$OUT"/data/videospeedtracker/Sample/Reports/report_*.html > /dev/null 2>&1 && pass "a copy is saved in Sample/Reports/" || fail "no report in the data folder's Sample/Reports/"
-ls "$OUT"/data/videospeedtracker/Sample/Stats/stats_*.csv > /dev/null 2>&1 && pass "the sample's results are in Sample/Stats/" || fail "no stats csv in Sample/Stats/"
-ls "$OUT"/data/videospeedtracker/Stats/stats_*.csv > /dev/null 2>&1 && fail "the sample's results leaked into the user's own Stats/" || pass "the user's own Stats/ holds none of the sample's runs"
+ls "$OUT"/data/vststudio/Sample/Reports/report_*.html > /dev/null 2>&1 && pass "a copy is saved in Sample/Reports/" || fail "no report in the data folder's Sample/Reports/"
+ls "$OUT"/data/vststudio/Sample/Stats/stats_*.csv > /dev/null 2>&1 && pass "the sample's results are in Sample/Stats/" || fail "no stats csv in Sample/Stats/"
+ls "$OUT"/data/vststudio/Stats/stats_*.csv > /dev/null 2>&1 && fail "the sample's results leaked into the user's own Stats/" || pass "the user's own Stats/ holds none of the sample's runs"
 
 req GET "/api/vehicles/$FIRST"
 expect 200 "GET /api/vehicles/$FIRST"
@@ -402,7 +402,7 @@ if [ -n "${NODE_OK:-}" ]; then
   # The calibration tests above applied and checked calibrations through the API; each must have left a row in
   # calibration-history.csv in the (throwaway) config folder, under the shared header, for this VST.cfg.
   echo "Calibration history"
-  HIST=$OUT/config/videospeedtracker/calibration-history.csv
+  HIST=$OUT/config/vststudio/calibration-history.csv
   if [ -f "$HIST" ]; then
     [ "$(head -1 "$HIST")" = "Timestamp, Config, Kind, Direction, DrivenMph, Frames, Fps, CalibrationFrames, MeasuredMph, Error" ] \
       && pass "calibration-history.csv has the header" || fail "calibration-history.csv header: $(head -1 "$HIST")"

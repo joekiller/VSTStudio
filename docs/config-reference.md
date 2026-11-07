@@ -6,7 +6,7 @@ you work through its setup steps, so most people never open it. This page is for
 by hand, or set up a headless box.
 
 Each program prints `Using config <path>` when it starts. Where the file lives is described in
-[Installing VideoSpeedTracker](install.md#where-settings-and-data-live).
+[Installing VST Studio](install.md#where-settings-and-data-live).
 
 ## Format
 
@@ -24,7 +24,7 @@ key = value      # text after # is a comment
 - **Pixel values are in a 1280 x 720 picture**, with the origin at the top left (x to the right, y down). Video of any
   other size is scaled to 1280 x 720 before the tracker sees it, so measure positions on a 1280 x 720 copy of a frame.
 
-The `VST.cfg` that ships with VideoSpeedTracker is set up for the bundled 2016 sample video from Locust Avenue, so its
+The `VST.cfg` that ships with VST Studio is set up for the bundled 2016 sample video from Locust Avenue, so its
 values are a working example. The defaults below are the values built into the program.
 
 ## Where things are in the picture

@@ -257,12 +257,12 @@ std::string App::dataDir() {
 }
 
 std::string App::findSample() {
-	// Installed packages put the 2016 Locust Avenue sample under share/videospeedtracker/sample (Linux) or
+	// Installed packages put the 2016 Locust Avenue sample under share/vststudio/sample (Linux) or
 	// sample/ next to the exe (Windows, macOS); a source checkout has it in sampleData/.
 	if (fs::path installed = userpaths::sampleVideo(); !installed.empty()) return installed.string();
 	const char* name = "manual_20160130172251.avi";
 	fs::path exe = userpaths::executableDir();
-	for (fs::path p : { exe / "sample" / name, exe / ".." / "share" / "videospeedtracker" / "sample" / name,
+	for (fs::path p : { exe / "sample" / name, exe / ".." / "share" / "vststudio" / "sample" / name,
 		fs::path("sampleData/IPCam/20160130") / name, exe / ".." / "sampleData/IPCam/20160130" / name,
 		exe / ".." / ".." / "sampleData/IPCam/20160130" / name, exe / ".." / ".." / ".." / "sampleData/IPCam/20160130" / name }) {
 		std::error_code ec;
@@ -1895,7 +1895,7 @@ std::string App::cameraIssueUrl(const std::string& failure) const {
 	body += r.markdown();
 	std::string encoded = encode(body);
 	if (encoded.size() > 6000) encoded = encode(body.substr(0, 4000) + "\n\n(cut short: use Copy details for the rest)");
-	return "https://github.com/joekiller/VideoSpeedTracker/issues/new?title=" + encode(title) + "&body=" + encoded;
+	return "https://github.com/joekiller/VSTStudio/issues/new?title=" + encode(title) + "&body=" + encoded;
 }
 
 // The Pi camera settings popup on the camera card.  Defaults suit a street seen from the side (PiCamera.h): 60 fps, a
@@ -3020,7 +3020,7 @@ void App::dashcamSpeed(const Vehicle* picked) {
 	if (ImGui::IsItemHovered())
 		ImGui::SetTooltip("Drive past at any steady speed while recording, then pick the files. Load both to cross-check them.\n"
 			"  Tesla: the -front.mp4 clips from the USB drive's TeslaCam folder (software 2025.44.25 or later, HW3 and newer).\n"
-			"  Any phone: a recording from VST Ride-along, the GPS recorder at joekiller.github.io/VideoSpeedTracker.");
+			"  Any phone: a recording from VST Ride-along, the GPS recorder at joekiller.github.io/VSTStudio.");
 	if (dashClips_.empty()) return;
 
 	int teslas = 0, phones = 0;

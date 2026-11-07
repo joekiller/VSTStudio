@@ -32,10 +32,12 @@ tag builds the job runs in the GitHub environment `release`, and that environmen
    and **Directory (tenant) ID**.
 2. In the app, **Certificates & secrets → Federated credentials → Add credential**, scenario *GitHub Actions
    deploying Azure resources*:
-   - Organization `joekiller`, Repository `VideoSpeedTracker` (the portal also asks for their numeric IDs and
-     builds the ID-based subject this repo's tokens use, `repo:joekiller@<org id>/VideoSpeedTracker@<repo id>:...`)
+   - Organization `joekiller`, Repository `VSTStudio` (the portal also asks for their numeric IDs and
+     builds the ID-based subject this repo's tokens use, `repo:joekiller@<org id>/VSTStudio@<repo id>:...`)
    - Entity type **Environment**, environment **`release`**
-   - Resulting subject: `repo:joekiller@1022919/VideoSpeedTracker@1430362908:environment:release`
+   - Resulting subject: `repo:joekiller@1022919/VSTStudio@1430362908:environment:release`
+   - The repository name is part of the subject: the repo was renamed from VideoSpeedTracker to VSTStudio at v2.0.0
+     and the credential was updated to match. Rename it again and tag builds can't sign until the credential is too.
 
    A *Tag* entity type matches a single exact tag name, so it can't cover every `v*` release; the environment can.
 3. On the **Artifact Signing account** (not the subscription), **Access control (IAM) → Add role assignment →
@@ -124,7 +126,7 @@ Not done, on purpose:
 
 - **GPG-signed `.deb`s** (`dpkg-sig`, `debsigs`): dpkg and apt don't check them by default, so they add a key to
   guard and protect almost no one.
-- **A signed apt repository** (`apt install videospeedtracker` with automatic updates): the Linux equivalent of
+- **A signed apt repository** (`apt install vststudio` with automatic updates): the Linux equivalent of
   Authenticode for users who want it. It needs a long-lived GPG key in the `release` environment and a host for
   the repo (GitHub Pages works). Worth doing if people start installing VST on many Pis.
 

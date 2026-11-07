@@ -1,7 +1,8 @@
-# Cross-platform build for VideoSpeedTracker (VST) and the highlights processor (ProcessHiLites).
+# Cross-platform build for VST Studio: the VideoSpeedTracker tracker (VST), the highlights processor (ProcessHiLites)
+# and, in src/Gui, the VSTStudio desktop app.
 # Builds the original sources in src/Wintel64 against OpenCV 4 or 5 on Linux, macOS or Windows.
 cmake_minimum_required(VERSION 3.16)
-project(VideoSpeedTracker CXX)
+project(VSTStudio CXX)
 # install() normalizes DESTINATION paths (./companion becomes companion): the same install tree, minus a dev
 # warning per install() on CMake 3.31+.
 if(POLICY CMP0177)
@@ -182,7 +183,7 @@ if(WIN32 OR APPLE)
   set(VST_DATA_DIR .)
 else()
   set(VST_BIN_DIR ${CMAKE_INSTALL_BINDIR})
-  set(VST_DATA_DIR ${CMAKE_INSTALL_DATADIR}/videospeedtracker)
+  set(VST_DATA_DIR ${CMAKE_INSTALL_DATADIR}/vststudio)
 endif()
 install(TARGETS VideoSpeedTracker ProcessHiLites RUNTIME DESTINATION ${VST_BIN_DIR})
 # VST.cfg / ProcessHiLites.cfg are read-only templates; on first run each program copies its own into the
@@ -204,7 +205,7 @@ endif()
 if(WIN32 OR APPLE)
   install(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION . RENAME LICENSE.txt)
 else()
-  install(FILES ${CMAKE_SOURCE_DIR}/packaging/copyright DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/videospeedtracker)
+  install(FILES ${CMAKE_SOURCE_DIR}/packaging/copyright DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/vststudio)
 endif()
 # A static OpenCV (packaging/build-opencv.sh) is compiled into the exes, so ship its Apache-2.0
 # LICENSE and the notices for the third-party code it bundles.
@@ -212,7 +213,7 @@ if(NOT OpenCV_SHARED AND EXISTS ${OpenCV_INSTALL_PATH}/LICENSE)
   if(WIN32 OR APPLE)
     set(VST_OPENCV_NOTICE_DIR licenses/opencv)
   else()
-    set(VST_OPENCV_NOTICE_DIR ${CMAKE_INSTALL_DATADIR}/doc/videospeedtracker/opencv)
+    set(VST_OPENCV_NOTICE_DIR ${CMAKE_INSTALL_DATADIR}/doc/vststudio/opencv)
   endif()
   install(FILES ${OpenCV_INSTALL_PATH}/LICENSE DESTINATION ${VST_OPENCV_NOTICE_DIR})
   foreach(dir ${OpenCV_INSTALL_PATH}/share/licenses/opencv5 ${OpenCV_INSTALL_PATH}/etc/licenses)
@@ -412,15 +413,20 @@ if(VST_WERROR AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   endforeach()
 endif()
 
-set(CPACK_PACKAGE_NAME videospeedtracker)
+set(CPACK_PACKAGE_NAME vststudio)
 set(CPACK_PACKAGE_VERSION ${VST_VERSION})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Measures vehicle speeds from fixed-camera street video")
 set(CPACK_PACKAGE_CONTACT "Joe Lawson <joe@joekiller.com>")
-set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/joekiller/VideoSpeedTracker")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/joekiller/VSTStudio")
 set(CPACK_PACKAGING_INSTALL_PREFIX /usr)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_SECTION video)
 # VST Studio's open/save dialogs use zenity (or kdialog) on Linux; without either it falls back to typed paths.
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "zenity | kdialog")
+# The package was called videospeedtracker before v2.0.0: installing vststudio replaces it (same files, new
+# paths), so `apt install ./vststudio_*.deb` upgrades a v1 install instead of refusing to overwrite it.
+set(CPACK_DEBIAN_PACKAGE_REPLACES "videospeedtracker")
+set(CPACK_DEBIAN_PACKAGE_CONFLICTS "videospeedtracker")
+set(CPACK_DEBIAN_PACKAGE_PROVIDES "videospeedtracker")
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 include(CPack)
