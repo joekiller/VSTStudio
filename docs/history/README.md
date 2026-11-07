@@ -94,8 +94,8 @@ street report, before-and-after comparisons, verified calibration and published 
 
 ## From 2016 to today
 
-Joseph Lawson's fork, [joekiller/VideoSpeedTracker](https://github.com/joekiller/VideoSpeedTracker), began in October 2026
-to bring VST to a much narrower view, a second-floor window over a one-way street in Charlottesville where wrong-way
+Joseph Lawson's fork, first joekiller/VideoSpeedTracker and since v2.0.0 (November 2026)
+[joekiller/VSTStudio](https://github.com/joekiller/VSTStudio), began in October 2026 to bring VST to a much narrower view, a second-floor window over a one-way street in Charlottesville where wrong-way
 drivers matter as much as speeders, and to make it usable by anyone. The tracker at its heart is still Paul Reynolds'
 design, and his copyright and license notice is in every source file. VST Studio recognizes a setup made with the 2016
 program, greets its creator (the Locust Avenue setup gets "Hello, Professor."), and builds on it without changing it

@@ -53,7 +53,7 @@ function footer(g, site, when) {
   const parts = [prefs.get('shareSite') && site, prefs.get('shareTime') && when].filter(Boolean);
   if (parts.length) g.fillText(parts.join('  ·  '), 72, CH - 120);
   g.fillStyle = C.accent; g.font = `700 30px ${FONT}`;
-  g.fillText('Measured with VideoSpeedTracker', 72, CH - 72);
+  g.fillText('Measured with VST Studio', 72, CH - 72);
 }
 
 /** Draws `img` to fill (x,y,w,h), cropping the excess like CSS object-fit: cover. */

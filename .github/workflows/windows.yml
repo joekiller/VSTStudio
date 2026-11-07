@@ -90,7 +90,7 @@ jobs:
         run: ctest --test-dir build -C Release --output-on-failure -j $env:NUMBER_OF_PROCESSORS
       - name: Stage package
         run: |
-          $name = "VideoSpeedTracker-${{ env.VST_VERSION }}-windows-x64"
+          $name = "VSTStudio-${{ env.VST_VERSION }}-windows-x64"
           "PKG_NAME=$name" | Out-File -Append $env:GITHUB_ENV
           # The install step adds OpenCV's LICENSE and third-party notices (incl. FFmpeg's LGPL-2.1
           # for the plugin DLL) under licenses/opencv.
@@ -118,8 +118,8 @@ jobs:
           files-folder: ${{ github.workspace }}\pkg\${{ env.PKG_NAME }}
           files-folder-filter: exe
           # Shown as the program name (and its link) in the UAC prompt instead of the bare file name.
-          description: VideoSpeedTracker
-          description-url: https://github.com/joekiller/VideoSpeedTracker
+          description: VST Studio
+          description-url: https://github.com/joekiller/VSTStudio
           # azure/login leaves an Azure CLI session; skip the environment credential that DefaultAzureCredential
           # would otherwise try first.
           exclude-environment-credential: true
@@ -158,8 +158,8 @@ jobs:
           certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
           files-folder: ${{ github.workspace }}\installer
           files-folder-filter: exe
-          description: VideoSpeedTracker setup
-          description-url: https://github.com/joekiller/VideoSpeedTracker
+          description: VST Studio setup
+          description-url: https://github.com/joekiller/VSTStudio
           exclude-environment-credential: true
           cache-dependencies: false
           file-digest: SHA256
@@ -187,14 +187,14 @@ jobs:
           Start-Sleep -Seconds 5
           if ($app.HasExited -and $app.ExitCode -eq -1073741515) { throw "VSTStudio.exe is missing a DLL" }
           if (-not $app.HasExited) { Stop-Process $app -Force }
-          New-Item -ItemType Directory -Force "$env:APPDATA\VideoSpeedTracker" | Out-Null
-          "kept" | Out-File "$env:APPDATA\VideoSpeedTracker\uninstall-test.txt"
+          New-Item -ItemType Directory -Force "$env:APPDATA\VSTStudio" | Out-Null
+          "kept" | Out-File "$env:APPDATA\VSTStudio\uninstall-test.txt"
           Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
           # The uninstaller hands off to a copy of itself in %TEMP%, so wait for the files to go.
           for ($i = 0; $i -lt 30 -and (Test-Path "$dir\VSTStudio.exe"); $i++) { Start-Sleep -Seconds 1 }
           if (Test-Path "$dir\VSTStudio.exe") { throw "uninstall left VSTStudio.exe behind" }
           if (Test-Path $lnk) { throw "uninstall left the Start-menu shortcut" }
-          if (-not (Test-Path "$env:APPDATA\VideoSpeedTracker\uninstall-test.txt")) { throw "uninstall removed the user's config folder" }
+          if (-not (Test-Path "$env:APPDATA\VSTStudio\uninstall-test.txt")) { throw "uninstall removed the user's config folder" }
           Copy-Item $setup.FullName dist/
       - uses: actions/upload-artifact@v7
         with:

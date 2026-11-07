@@ -100,7 +100,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure -j"$(sysctl -n hw.ncpu)"
       - name: Stage package
         run: |
-          name="VideoSpeedTracker-${{ env.VST_VERSION }}-macos-arm64"
+          name="VSTStudio-${{ env.VST_VERSION }}-macos-arm64"
           echo "PKG_NAME=$name" >> "$GITHUB_ENV"
           # The package is a single VSTStudio.app: the disk image shows it beside an Applications link and
           # nothing else, so installing is one drag and opening it starts the GUI. Everything `cmake --install`
@@ -114,7 +114,7 @@ jobs:
           # even when it's notarized, and only a bundle can carry a stapled ticket. Keeping the resources inside
           # matters too: a quarantined app is translocated alone on first launch. Every program finds its files
           # through Contents/MacOS/../Resources (userpaths::installedFile) and copies the cfg templates to
-          # ~/Library/Application Support/VideoSpeedTracker on first run, so nothing writes into the signed bundle.
+          # ~/Library/Application Support/VSTStudio on first run, so nothing writes into the signed bundle.
           inst="$RUNNER_TEMP/install"
           cmake --install build --prefix "$inst"
           app="pkg/$name/VSTStudio.app/Contents"
@@ -220,7 +220,7 @@ jobs:
           dmgroot="$RUNNER_TEMP/dmgroot"
           ditto "pkg/$name" "$dmgroot"
           ln -s /Applications "$dmgroot/Applications"
-          hdiutil create -volname "VideoSpeedTracker ${{ env.VST_VERSION }}" -srcfolder "$dmgroot" \
+          hdiutil create -volname "VST Studio ${{ env.VST_VERSION }}" -srcfolder "$dmgroot" \
             -fs HFS+ -format UDZO -ov "dist/$name.dmg"
       # A second notarization, of the image itself, so its ticket can be stapled to the .dmg too.
       - name: Sign and notarize the disk image

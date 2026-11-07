@@ -1,6 +1,6 @@
 # Output files
 
-Everything VideoSpeedTracker records is a plain file you can open, copy, back up or analyze yourself. This page is
+Everything VST Studio records is a plain file you can open, copy, back up or analyze yourself. This page is
 for the curious and for anyone loading the numbers into a spreadsheet, R or Python. Where the folders are on your
 computer is in [Installing](install.md#where-settings-and-data-live).
 

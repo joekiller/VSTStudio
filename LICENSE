@@ -1,6 +1,9 @@
 Copyright Paul Reynolds, Locust Avenue, Charlottesville, Va,  2016
 All rights reserved.
 
+VST Studio is built on Paul Reynolds' VideoSpeedTracker (https://github.com/pfr/VideoSpeedTracker).
+Portions copyright Joe Lawson, 2026, under the same license below.
+
 License Agreement
 For VideoSpeedTracker (VST)
 (3 - clause BSD License)

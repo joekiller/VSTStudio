@@ -1,6 +1,6 @@
-# Installing VideoSpeedTracker
+# Installing VST Studio
 
-Every [release](https://github.com/joekiller/VideoSpeedTracker/releases/latest) has a package for each platform. Each
+Every [release](https://github.com/joekiller/VSTStudio/releases/latest) has a package for each platform. Each
 package holds the whole project: **VST Studio** (the desktop app most people use), the phone companion it serves, the
 command-line tracker `VideoSpeedTracker`, the highlights editor `ProcessHiLites`, a sample video and its settings, and
 the guides. Nothing else needs installing.
@@ -9,11 +9,11 @@ the guides. Nothing else needs installing.
 
 | Your computer | Download | How to install |
 |---|---|---|
-| **Windows** 10 or 11 (64-bit) | `VideoSpeedTracker-<version>-windows-x64-setup.exe` | Run it. The first page asks whether to install just for you (no admin prompt) or for everyone on the computer; *for everyone* also lets phones reach the companion through Windows Firewall on your home network. VST Studio is added to the Start menu, and it uninstalls from **Settings > Apps**. |
-| Windows, no installer | `VideoSpeedTracker-<version>-windows-x64.zip` | Unzip anywhere and run `VSTStudio.exe`. |
-| **Mac** with Apple silicon (M1 or later), macOS 13 or later | `VideoSpeedTracker-<version>-macos-arm64.dmg` | Open it and drag **VSTStudio.app** onto Applications. That one app is everything, the command-line tools included ([below](#macos-command-line-tools)). |
-| Mac, archive | `VideoSpeedTracker-<version>-macos-arm64.tar.gz` | The same app: untar it and move **VSTStudio.app** to Applications. |
-| **Linux** and **Raspberry Pi**: Debian 12 or 13, Raspberry Pi OS (64-bit), Ubuntu 24.04 or 26.04 | `videospeedtracker_<version>_<distro>_<amd64 or arm64>.deb` | `sudo apt install ./videospeedtracker_*.deb`. Use `arm64` for a Raspberry Pi and `amd64` for most PCs. apt pulls in FFmpeg and GTK; OpenCV is built in. |
+| **Windows** 10 or 11 (64-bit) | `VSTStudio-<version>-windows-x64-setup.exe` | Run it. The first page asks whether to install just for you (no admin prompt) or for everyone on the computer; *for everyone* also lets phones reach the companion through Windows Firewall on your home network. VST Studio is added to the Start menu, and it uninstalls from **Settings > Apps**. |
+| Windows, no installer | `VSTStudio-<version>-windows-x64.zip` | Unzip anywhere and run `VSTStudio.exe`. |
+| **Mac** with Apple silicon (M1 or later), macOS 13 or later | `VSTStudio-<version>-macos-arm64.dmg` | Open it and drag **VSTStudio.app** onto Applications. That one app is everything, the command-line tools included ([below](#macos-command-line-tools)). |
+| Mac, archive | `VSTStudio-<version>-macos-arm64.tar.gz` | The same app: untar it and move **VSTStudio.app** to Applications. |
+| **Linux** and **Raspberry Pi**: Debian 12 or 13, Raspberry Pi OS (64-bit), Ubuntu 24.04 or 26.04 | `vststudio_<version>_<distro>_<amd64 or arm64>.deb` | `sudo apt install ./vststudio_*.deb`. Use `arm64` for a Raspberry Pi and `amd64` for most PCs. apt pulls in FFmpeg and GTK; OpenCV is built in. |
 
 Your settings and results are kept outside the program folder, so upgrading or uninstalling never touches them.
 
@@ -37,24 +37,27 @@ To check an attestation yourself with the [GitHub CLI](https://cli.github.com/),
 file built any other way fails:
 
 ```
-gh attestation verify videospeedtracker_1.10.0_ubuntu-24.04_arm64.deb -R joekiller/VideoSpeedTracker \
-  --signer-workflow joekiller/VideoSpeedTracker/.github/workflows/release.yml \
-  --source-ref refs/tags/v1.10.0 --deny-self-hosted-runners
+gh attestation verify vststudio_2.0.0_ubuntu-24.04_arm64.deb -R joekiller/VSTStudio \
+  --signer-workflow joekiller/VSTStudio/.github/workflows/release.yml \
+  --source-ref refs/tags/v2.0.0 --deny-self-hosted-runners
 ```
+
+Releases before v2.0.0 were built when the repository was called VideoSpeedTracker, so their attestations name it:
+for those, use `joekiller/VideoSpeedTracker` in `-R` and `--signer-workflow`.
 
 Each release also has `SHA256SUMS`, listing every file, which is itself attested, so one check covers a whole
 download folder. `SHA256SUMS.sigstore.json` is that signature as a file, for checking later or offline:
 
 ```
-gh attestation verify SHA256SUMS --bundle SHA256SUMS.sigstore.json -R joekiller/VideoSpeedTracker \
-  --signer-workflow joekiller/VideoSpeedTracker/.github/workflows/release.yml --source-ref refs/tags/v1.10.0
+gh attestation verify SHA256SUMS --bundle SHA256SUMS.sigstore.json -R joekiller/VSTStudio \
+  --signer-workflow joekiller/VSTStudio/.github/workflows/release.yml --source-ref refs/tags/v2.0.0
 sha256sum -c SHA256SUMS --ignore-missing        # macOS: shasum -a 256 -c SHA256SUMS --ignore-missing
 ```
 
 On a Mac, in the opened disk image or the untarred folder:
 
 ```
-spctl -a -t open --context context:primary-signature -vv VideoSpeedTracker-*.dmg   # the image: Notarized Developer ID
+spctl -a -t open --context context:primary-signature -vv VSTStudio-*.dmg   # the image: Notarized Developer ID
 codesign -dv --verbose=4 VSTStudio.app      # Authority=Developer ID Application: ..., Runtime Version, Timestamp
 spctl -a -t exec -vv VSTStudio.app          # accepted, source=Notarized Developer ID
 xcrun stapler validate VSTStudio.app        # The validate action worked!
@@ -68,9 +71,15 @@ maintainers is in [code-signing.md](code-signing.md).
 
 | | Settings (`VST.cfg`, `vst-studio.ini`, calibration records) | Data (videos, results, reports, archives) |
 |---|---|---|
-| Windows | `%APPDATA%\VideoSpeedTracker` | `%LOCALAPPDATA%\VideoSpeedTracker` |
-| macOS | `~/Library/Application Support/VideoSpeedTracker` | `~/Library/Application Support/VideoSpeedTracker/Data` |
-| Linux | `~/.config/videospeedtracker` (or `$XDG_CONFIG_HOME`) | `~/.local/share/videospeedtracker` (or `$XDG_DATA_HOME`) |
+| Windows | `%APPDATA%\VSTStudio` | `%LOCALAPPDATA%\VSTStudio` |
+| macOS | `~/Library/Application Support/VSTStudio` | `~/Library/Application Support/VSTStudio/Data` |
+| Linux | `~/.config/vststudio` (or `$XDG_CONFIG_HOME`) | `~/.local/share/vststudio` (or `$XDG_DATA_HOME`) |
+
+Upgrading from v1 (when VST Studio was called VideoSpeedTracker): if the folders above don't exist yet but the v1
+ones do (`VideoSpeedTracker` on Windows and macOS, `videospeedtracker` on Linux), VST Studio keeps using the v1
+folders as they are, with every setting, calibration and run in them. Nothing is moved or copied. To switch to the
+new name, quit VST Studio and rename the folders yourself; set `dataPathPrefix` in `VST.cfg` to match if it names
+the old data folder.
 
 The first time a program runs it copies its settings template here and creates the data folders. The program's own
 folder is never written to. To keep video and results on another drive, set `dataPathPrefix` in `VST.cfg` (see the
@@ -100,16 +109,17 @@ VideoSpeedTracker --demo
 ```
 
 Don't edit the templates inside the app: that breaks its signature, and an update replaces them anyway. Edit the
-per-user copy in `~/Library/Application Support/VideoSpeedTracker` instead.
+per-user copy in `~/Library/Application Support/VSTStudio` instead.
 
-On Windows the command-line programs are in the install folder: `%LOCALAPPDATA%\Programs\VideoSpeedTracker` when
-installed for you, or `C:\Program Files\VideoSpeedTracker` for everyone. On Linux they are on your `PATH`.
+On Windows the command-line programs are in the install folder: `%LOCALAPPDATA%\Programs\VSTStudio` when
+installed for you, or `C:\Program Files\VSTStudio` for everyone (an install upgraded from v1 stays in its
+`VideoSpeedTracker` folder). On Linux they are on your `PATH`.
 
 ## Licenses
 
-VideoSpeedTracker is BSD 3-Clause ([LICENSE](../LICENSE)), copyright Paul Reynolds, 2016, with every later
-contribution under the same terms. Every package links OpenCV (Apache 2.0) statically. The Windows packages ship
+VST Studio is BSD 3-Clause ([LICENSE](../LICENSE)), copyright Paul Reynolds, 2016, whose VideoSpeedTracker it is
+built on, with every later contribution under the same terms. Every package links OpenCV (Apache 2.0) statically. The Windows packages ship
 OpenCV's FFmpeg plugin and the Mac app ships FFmpeg libraries (both LGPL 2.1, loaded dynamically); Linux gets FFmpeg
 and GTK from apt. VST Studio also builds in GLFW, Dear ImGui, cpp-httplib, nlohmann/json, Nayuki's QR Code generator,
 and the Inter and Font Awesome Free fonts. Their license texts are installed in `licenses/` (Windows),
-`VSTStudio.app/Contents/Resources/licenses/` (macOS) or `/usr/share/doc/videospeedtracker/` (Linux).
+`VSTStudio.app/Contents/Resources/licenses/` (macOS) or `/usr/share/doc/vststudio/` (Linux).

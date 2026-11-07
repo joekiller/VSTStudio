@@ -14,22 +14,22 @@
 # (build.yml's single Linux job covers Linux). To run the full matrix on a branch anyway, start this workflow by hand (Actions > release > Run workflow, or
 # `gh workflow run release.yml --ref <branch>`); a manual run on a tag also publishes.
 #
-# Every package holds VideoSpeedTracker, ProcessHiLites and the VST Studio desktop app (VSTStudio) plus
+# Every package holds the VideoSpeedTracker tracker, ProcessHiLites and the VST Studio desktop app (VSTStudio) plus
 # their sample configs. VST Studio's own dependencies (GLFW, Dear ImGui, fonts, ...) are fetched by CMake at
 # configure time and linked statically, so the packages need nothing new at run time.
 # Outputs (all on OpenCV 5 and checked with the sample-video ctest):
-#   videospeedtracker_<ver>_<distro>_<arch>.deb  Debian 12/13 (incl. Raspberry Pi OS) and Ubuntu
+#   vststudio_<ver>_<distro>_<arch>.deb  Debian 12/13 (incl. Raspberry Pi OS) and Ubuntu
 #                                                24.04/26.04 LTS, amd64 + arm64; OpenCV linked in
 #                                                statically, apt pulls in the distro's FFmpeg and GTK
 #                                                runtimes
-#   VideoSpeedTracker-<ver>-windows-x64-setup.exe  installer of the same files: Start-menu "VST Studio",
+#   VSTStudio-<ver>-windows-x64-setup.exe  installer of the same files: Start-menu "VST Studio",
 #                                                per-user or all-users, signed like the exes (packaging/windows)
-#   VideoSpeedTracker-<ver>-windows-x64.zip      exes (static OpenCV) + FFmpeg plugin/MSVC runtime DLLs
+#   VSTStudio-<ver>-windows-x64.zip      exes (static OpenCV) + FFmpeg plugin/MSVC runtime DLLs
 #                                                and their licenses
-#   VideoSpeedTracker-<ver>-macos-arm64.dmg      just VSTStudio.app (drag to Applications); the command-line tools,
+#   VSTStudio-<ver>-macos-arm64.dmg      just VSTStudio.app (drag to Applications); the command-line tools,
 #                                                cfg templates, docs and licenses are inside the bundle;
 #                                                signed, notarized and stapled on tags
-#   VideoSpeedTracker-<ver>-macos-arm64.tar.gz   the same app. Self-contained (static OpenCV, FFmpeg dylibs in
+#   VSTStudio-<ver>-macos-arm64.tar.gz   the same app. Self-contained (static OpenCV, FFmpeg dylibs in
 #                                                Contents/Frameworks); macOS 13 or later, no Homebrew needed
 # Every platform builds OpenCV from source with packaging/build-opencv.sh (macOS also FFmpeg, build-ffmpeg.sh); the
 # install is cached per platform, so only the first run (or a change to that script) pays for the build.
@@ -169,8 +169,8 @@ jobs:
         run: |
           (cd build && cpack -G DEB)
           mkdir dist
-          cp build/videospeedtracker_*.deb \
-             "dist/videospeedtracker_${{ needs.meta.outputs.version }}_${{ matrix.distro }}_${{ matrix.arch }}.deb"
+          cp build/vststudio_*.deb \
+             "dist/vststudio_${{ needs.meta.outputs.version }}_${{ matrix.distro }}_${{ matrix.arch }}.deb"
           dpkg-deb --info dist/*.deb
       - uses: actions/upload-artifact@v7
         with:
@@ -219,7 +219,7 @@ jobs:
           merge-multiple: true
           path: dist
       # Signed SLSA provenance for every package, tying each file's digest to this workflow run,
-      # commit and tag; verify with `gh attestation verify <file> -R joekiller/VideoSpeedTracker`.
+      # commit and tag; verify with `gh attestation verify <file> -R joekiller/VSTStudio`.
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:

@@ -2,7 +2,7 @@
 
 A camera in your window can tell you how fast your street really is. Getting something done about it means bringing
 that evidence to the people who can change the street, in a form they can trust and use. This guide is how to do
-that with VideoSpeedTracker. It grew out of the
+that with VST Studio. It grew out of the
 [Locust Avenue story](history/README.md#paul-reynolds-and-locust-avenue), where one neighbor's measurements became
 something residents, city staff and council could all work from.
 

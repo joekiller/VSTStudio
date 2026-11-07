@@ -1,4 +1,7 @@
-# VideoSpeedTracker documentation
+# VST Studio documentation
+
+VST Studio is built on Paul Reynolds' 2016 [VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker); its story is in
+[history](history/README.md).
 
 New here? Start with [Getting started](getting-started.md).
 

@@ -1,7 +1,7 @@
 # Troubleshooting
 
 Something not working? It is almost always one of the things below, and every one of them has a way through. If
-yours isn't here, [open an issue](https://github.com/joekiller/VideoSpeedTracker/issues/new) with what you tried and
+yours isn't here, [open an issue](https://github.com/joekiller/VSTStudio/issues/new) with what you tried and
 what VST said; for a camera that misbehaves, **Report this camera** on VST Studio's Connect the camera step fills one
 in for you.
 

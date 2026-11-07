@@ -1136,7 +1136,7 @@ std::string renderHtml(const Study& st) {
 		h << "<div class='runhead'><span>" << esc(s.siteName) << " · " << esc(range) << "</span><span>" << esc(what) << "</span></div>";
 	};
 	auto foot = [&]() {
-		h << "<div class='foot'><span>" << esc(label) << "</span><span>VideoSpeedTracker " << esc(s.version) << " · generated " << esc(genText) << "</span></div>";
+		h << "<div class='foot'><span>" << esc(label) << "</span><span>VST Studio " << esc(s.version) << " · generated " << esc(genText) << "</span></div>";
 	};
 
 	h << "<!doctype html>\n<html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
@@ -1183,7 +1183,7 @@ std::string renderHtml(const Study& st) {
 		h << "<div class='status warn'><b>Calibration not verified.</b><span>No check pass at a known speed confirms the calibration"
 		  << (st.historyFound ? "" : " (no calibration history was found)") << ". The ±" << f1(st.band) << " mph band covers frame counting only, not calibration error.</span></div>";
 	h << "<p class='small'>Speeds are estimated from video by counting the frames a vehicle takes between two lines, calibrated with one pass at a known speed. "
-	  << "Every figure is ±" << f1(st.band) << " mph at the limit (see Accuracy). Collected by a resident with VideoSpeedTracker; no plates or faces are recorded.</p>";
+	  << "Every figure is ±" << f1(st.band) << " mph at the limit (see Accuracy). Collected by a resident with VST Studio; no plates or faces are recorded.</p>";
 	if (!s.note.empty()) h << "<div class='note'><h3>Note from the observer</h3><p>" << esc(s.note) << "</p></div>";
 	foot();
 	h << "</section>\n";
@@ -1395,7 +1395,7 @@ std::string renderHtml(const Study& st) {
 	h << "<section class='sheet method'>";
 	runhead("Method");
 	h << "<h2><span class='num'>" << ++sec << "</span>Method</h2>";
-	h << "<h3>How VST measures speed</h3><p>A fixed camera looks across the street. VideoSpeedTracker (VST) finds moving vehicles by comparing consecutive frames, follows each one's front bumper, "
+	h << "<h3>How VST measures speed</h3><p>A fixed camera looks across the street. VST Studio, built on Paul Reynolds' 2016 VideoSpeedTracker (VST), finds moving vehicles by comparing consecutive frames, follows each one's front bumper, "
 	  << "and counts the frames it takes to travel between two vertical lines drawn on the picture. Speed is the calibration speed scaled by the ratio of frame counts: "
 	  << "<i>speed = calibration speed × calibration frames ÷ frames counted</i>, corrected for the video's frame rate. It measures time over a fixed distance; it does not use radio or laser.</p>";
 	h << "<h3>Calibration</h3><p>The distance between the lines is never measured directly. Instead a car drives through at a known speed (on cruise control) and VST records how many frames it took, "
@@ -1434,7 +1434,7 @@ std::string renderHtml(const Study& st) {
 		if (listed > 25) h << "<tr><td colspan='4' class='muted'>and " << listed - 25 << " more files</td></tr>";
 	}
 	h << "</table>";
-	h << "<p class='small'>Made with VideoSpeedTracker " << esc(s.version) << " (BSD 3-Clause, github.com/joekiller/VideoSpeedTracker) on " << esc(genText) << ".</p>";
+	h << "<p class='small'>Made with VST Studio " << esc(s.version) << ", based on VideoSpeedTracker by Paul Reynolds (2016). BSD 3-Clause, github.com/joekiller/VSTStudio. Generated " << esc(genText) << ".</p>";
 	foot();
 	h << "</section>\n</body></html>\n";
 	return h.o.str();

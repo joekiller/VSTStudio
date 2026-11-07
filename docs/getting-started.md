@@ -1,25 +1,25 @@
-# Getting started with VideoSpeedTracker
+# Getting started with VST Studio
 
 This guide takes you from a fresh download to measuring the traffic on your street. You don't need to know anything
 about cameras or video first, and you don't need to buy anything to try it: VST Studio comes with a sample video, and
 the camera you already own (even a phone) is a fine place to start. Release packages install this guide as
 `GETTING-STARTED.md`.
 
-The full documentation is at [github.com/joekiller/VideoSpeedTracker](https://github.com/joekiller/VideoSpeedTracker#documentation).
+The full documentation is at [github.com/joekiller/VSTStudio](https://github.com/joekiller/VSTStudio#documentation).
 
 ## 1. Install it
 
 Download the file for your computer from the
-[latest release](https://github.com/joekiller/VideoSpeedTracker/releases/latest):
+[latest release](https://github.com/joekiller/VSTStudio/releases/latest):
 
-- **Windows:** `VideoSpeedTracker-<version>-windows-x64-setup.exe`. Run it and choose whether to install just for you
+- **Windows:** `VSTStudio-<version>-windows-x64-setup.exe`. Run it and choose whether to install just for you
   or for everyone (for everyone also lets your phone reach it through Windows Firewall).
-- **Mac** (Apple silicon, macOS 13 or later): `VideoSpeedTracker-<version>-macos-arm64.dmg`. Open it and drag
+- **Mac** (Apple silicon, macOS 13 or later): `VSTStudio-<version>-macos-arm64.dmg`. Open it and drag
   **VSTStudio.app** onto Applications.
 - **Linux or Raspberry Pi:** the `.deb` for your system (`arm64` for a Pi), then
-  `sudo apt install ./videospeedtracker_*.deb`.
+  `sudo apt install ./vststudio_*.deb`.
 
-[Installing](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/install.md) has every option and how to
+[Installing](https://github.com/joekiller/VSTStudio/blob/main/docs/install.md) has every option and how to
 check that a download is genuine.
 
 ## 2. Open VST Studio and watch it work
@@ -59,7 +59,7 @@ step at any time; nothing is lost.
    you know; a phone running VST Ride-along can record your speed so you don't need cruise control. Every way you
    calibrate adds to the others rather than replacing them.
 
-Not calibrated yet? Tracking runs anyway, and speeds firm up as you calibrate. [VST Studio](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/vst-studio.md)
+Not calibrated yet? Tracking runs anyway, and speeds firm up as you calibrate. [VST Studio](https://github.com/joekiller/VSTStudio/blob/main/docs/vst-studio.md)
 describes every step in detail.
 
 ## 4. Leave it running
@@ -85,18 +85,18 @@ marked, and the 85th-percentile speed (the number traffic engineers use). After 
 - **Publish** freezes a dataset with checksums so anyone can check it, and it can be re-checked against later
   calibrations.
 
-[Working with your city](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/working-with-your-city.md) is
+[Working with your city](https://github.com/joekiller/VSTStudio/blob/main/docs/working-with-your-city.md) is
 about what to do next: who to talk to, what to bring, and what to ask for.
 
 ## Prefer the command line?
 
 `VideoSpeedTracker --demo` runs the sample without VST Studio, and `VideoSpeedTracker --help` lists every option. It
 reads the same `VST.cfg` VST Studio writes, so you can set up in Studio and run headless on a schedule.
-[Command line](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/command-line.md) covers it, including
+[Command line](https://github.com/joekiller/VSTStudio/blob/main/docs/command-line.md) covers it, including
 camera options and setting up by hand.
 
 ## If something goes wrong
 
-[Troubleshooting](https://github.com/joekiller/VideoSpeedTracker/blob/main/docs/troubleshooting.md) covers the common
+[Troubleshooting](https://github.com/joekiller/VSTStudio/blob/main/docs/troubleshooting.md) covers the common
 cases. If VST says something you don't understand, it is a bug in the wording as much as anything:
-[tell us](https://github.com/joekiller/VideoSpeedTracker/issues/new).
+[tell us](https://github.com/joekiller/VSTStudio/issues/new).
