@@ -12,7 +12,17 @@ import { passCard, shareCanvas, shareClip, sharingOn } from '../share.js';
 import * as history from '../history.js';
 
 let filter = 'all';
-const FILTERS = { all: () => true, speeding: (v) => v.speeding, wrong: (v) => v.wrongWay };
+// Speeding and wrong way are about traffic, so a pass reviewed and left out isn't among them; "Left out" finds those.
+const FILTERS = { all: () => true, speeding: (v) => v.speeding && !v.leftOut, wrong: (v) => v.wrongWay && !v.leftOut, out: (v) => !!v.leftOut };
+/** The speed sign's colour: grey for a pass left out, else by speed and direction. */
+const signBand = (v) => (v.leftOut ? 'out' : band(v));
+/** Why a pass can be left out (src/Gui/Exclusions.h), in the order the desktop lists them. */
+const REASONS = [
+  ['not-vehicle', 'Not a vehicle', 'A shadow, a person or animal, headlights, rain, or the camera moving.'],
+  ['twice', 'Counted twice', 'The same vehicle was logged twice; this is the extra one.'],
+  ['bad-reading', 'Bad reading', 'A real vehicle, but the speed can\'t be right: it was hidden, or merged with another.'],
+  ['merged', 'Person merged with a car', 'Someone on the near sidewalk covered the lane as a car came the other way, and VST timed them as one: often a fast wrong-way reading.'],
+];
 
 export async function render(ctx, id, run, frame) {
   if (id) return detail(ctx, { id: Number(id) });
@@ -42,7 +52,7 @@ async function list({ vst, view }) {
     ${history.scopeSeg()}
     <div id="sets-host"></div>
     <div class="filters"><div class="seg" id="filter">
-      <button data-f="all">All</button><button data-f="speeding">Speeding</button>${oneWay ? html`<button data-f="wrong">Wrong way</button>` : ''}
+      <button data-f="all">All</button><button data-f="speeding">Speeding</button>${oneWay ? html`<button data-f="wrong">Wrong way</button>` : ''}<button data-f="out" hidden>Left out</button>
     </div></div>
     <div id="list"></div>`.__html;
 
@@ -50,9 +60,9 @@ async function list({ vst, view }) {
     ? html`<img class="thumb" src="${vst.media(v.snapshot)}" alt="" loading="lazy">`
     : html`<span class="thumb none" title="Pictures are kept only for passes since VST Studio last opened">${icon('camera')}</span>`);
   const row = (v) => html`
-    <a class="pass ${history.stripeClass(v.set)}" href="${history.passHref(v)}">
-      ${sign(v.speed, band(v))}
-      <div class="meta"><b>${v.wrongWay ? `Wrong way · ${v.speed} mph` : `${v.speed} mph`} ${arrow(v.dir)}</b>
+    <a class="pass ${history.stripeClass(v.set)}${v.leftOut ? ' left-out' : ''}" href="${history.passHref(v)}">
+      ${sign(v.speed, signBand(v))}
+      <div class="meta"><b>${v.wrongWay && !v.leftOut ? `Wrong way · ${v.speed} mph` : `${v.speed} mph`} ${arrow(v.dir)}</b>
         <small>${v.time ? clock(v.time) : 'Time not recorded'} <span class="nowrap">· ${v.compass}-bound</span> ${passPills(v, st.speedLimit)} ${savedPills(v)}</small></div>
       ${thumb(v)}
     </a>`;
@@ -60,13 +70,17 @@ async function list({ vst, view }) {
   const paint = () => {
     const saved = history.scope() === 'saved';
     $('#lede').textContent = saved ? 'Every vehicle VST has measured and saved, newest first.' : 'Every vehicle VST measured since VST Studio last opened, newest first.';
+    // "Left out" shows only while some pass is: it's where to find one to put back.
+    const anyOut = items.some((v) => v.leftOut);
+    if (!anyOut && filter === 'out') filter = 'all';
+    $('#filter [data-f="out"]').hidden = !anyOut;
     $$('#filter button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.f === filter));
     $$('#scope button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.scope === history.scope()));
     $('#sets-host').innerHTML = history.setsStrip().__html ?? '';
     const matching = history.inPicked(items).filter(FILTERS[filter]);
     const shown = matching.slice(0, limit);
     if (!shown.length) {
-      const none = filter === 'wrong' ? 'No wrong-way drivers. Nice.' : filter === 'speeding' ? 'Nobody speeding. Nice.'
+      const none = filter === 'wrong' ? 'No wrong-way drivers. Nice.' : filter === 'speeding' ? 'Nobody speeding. Nice.' : filter === 'out' ? 'Nothing left out.'
         : saved ? 'No saved passes yet. Start tracking in VST Studio and they show up here, and stay after it restarts.' : 'No passes since VST Studio opened.';
       const hint = !saved && filter === 'all' && history.savedSupported()
         ? html`<button class="btn" id="to-saved" style="margin-top:12px">${icon('report')}Show all saved runs</button>` : '';
@@ -140,10 +154,10 @@ async function detail({ vst, view }, { id, run, frame }) {
     if (!v) return gone('Its saved run may have been archived or removed in VST Studio.');
   }
   const st = vst.lastStatus || await vst.status();
-  const b = band(v);
+  const b = signBand(v);
   const secs = v.frames / (v.fps || 30);
   const over = v.speed - st.speedLimit;
-  const title = v.wrongWay ? 'Wrong-way driver' : over > 0 ? `${over} mph over the limit` : 'Within the limit';
+  const title = v.leftOut ? `Left out: ${v.leftOut.label || 'not traffic'}` : v.wrongWay ? 'Wrong-way driver' : over > 0 ? `${over} mph over the limit` : 'Within the limit';
   const clip = vst.media(v.clip), snap = vst.media(v.snapshot);
   const tr = trendOf(v);
   const set = v.set != null ? history.setById(v.set) : null;
@@ -160,13 +174,13 @@ async function detail({ vst, view }, { id, run, frame }) {
       <div class="hero">
         ${sign(v.speed, b, 'MPH', 'lg')}
         <div>
-          ${v.wrongWay ? html`<span class="wrongway" style="margin-bottom:8px">WRONG WAY</span>` : ''}
+          ${v.wrongWay && !v.leftOut ? html`<span class="wrongway" style="margin-bottom:8px">WRONG WAY</span>` : ''}
           <h1>${title}</h1>
           <p class="muted" style="margin:4px 0 0">${v.time ? dateLong(v.time) : 'Time not recorded'}</p>
         </div>
       </div>
       <div class="list">
-        <div class="item"><div class="label"><b>Speed</b><small>${BAND_LABEL[b]}${v.wrongWay && v.speeding ? ', and speeding' : ''}</small></div><div class="value">${v.speed} mph · limit ${st.speedLimit}</div></div>
+        <div class="item"><div class="label"><b>Speed</b><small>${v.leftOut ? 'Not in the numbers' : BAND_LABEL[b]}${!v.leftOut && v.wrongWay && v.speeding ? ', and speeding' : ''}</small></div><div class="value">${v.speed} mph · limit ${st.speedLimit}</div></div>
         ${v.adjusted ? html`<div class="item"><div class="label"><b>As measured</b><small>Re-timed to ${v.speed} mph by its calibration set's calibration</small></div><div class="value">${v.measured} mph</div></div>` : ''}
         <div class="item"><div class="label"><b>Speed change</b><small>${tr ? `${v.trend.entry} mph at the first line, ${v.trend.exit} at the second` : 'Not seen clearly enough to tell'}</small></div>
           <div class="value">${tr ? html`<span class="pill ${tr.cls}">${icon(tr.icon)}${tr.label}</span>` : '—'}</div></div>
@@ -178,6 +192,8 @@ async function detail({ vst, view }, { id, run, frame }) {
         ${set ? html`<div class="item ${history.stripeClass(set.id)}"><div class="label"><b>Calibration set</b><small>${sw.line}</small></div><div class="value">Set ${set.id} · ${sw.state}</div></div>` : ''}
         ${v.run ? html`<div class="item"><div class="label"><b>Saved run</b><small>${v.video}</small><small class="file">${v.run}</small></div></div>` : ''}
       </div>
+      <h3>Is this right?</h3>
+      <div id="review"></div>
       <h3>Share</h3>
       <div id="share"></div>
       <h3>Calibration</h3>
@@ -188,6 +204,54 @@ async function detail({ vst, view }, { id, run, frame }) {
     </div>`.__html;
 
   $('#use-cal')?.addEventListener('click', () => sessionStorage.setItem('vst.calPass', String(v.id)));
+
+  // Not traffic after all?  Leave it out (a mark that can be undone), put it back, or delete it for good (POST
+  // /api/vehicles/review, the same as Studio's Results).  A saved pass is named by run and frame, this session's by id.
+  // After a change the pass is read again, so what shows is what VST Studio now says.
+  const reviewBox = $('#review');
+  const who = v.run ? { run: v.run, frame: v.frame } : { id: v.id };
+  const again = () => detail({ vst, view }, { id, run, frame });
+  const send = async (body) => {
+    let r;
+    try { r = await vst.review({ ...who, ...body }); } catch (e) { toast(e.message); return null; }
+    if (!r.ok) { toast(r.problems?.[0] || r.message || 'That didn\'t work'); return null; }
+    toast(r.message);
+    return r;
+  };
+  const deleteIt = async (reason) => {
+    const yes = await sheet(html`
+      <h2>Delete this pass for good?</h2>
+      <p>This can't be undone: its row is taken out of the saved results${v.clip ? ', with its clip' : ''}.</p>
+      <p class="muted">Leaving it out does the same for every number and can be undone, so it's usually better. A line in VST Studio's exclusions.json still records that a pass was deleted, and why.</p>
+      <div class="btn-row"><button class="btn" data-v="0">Cancel</button><button class="btn danger" data-v="1">${icon('trash')}Delete for good</button></div>`,
+    (el, close) => $$('[data-v]', el).forEach((btn) => { btn.onclick = () => close(btn.dataset.v === '1'); }));
+    if (!yes) return;
+    if (await send({ action: 'delete', reason: typeof reason === 'string' ? reason : v.leftOut?.reason })) location.hash = '#/passes';
+  };
+  const leaveOut = async () => {
+    const pick = await sheet(html`
+      <h2>Leave this pass out</h2>
+      <p class="muted">${v.speed} mph${v.time ? `, ${dateLong(v.time)}` : ''}. It stays in Passes, greyed, and leaves Stats, the street report and anything published from now on. You can put it back.</p>
+      <div class="reasons" role="radiogroup" aria-label="Why">${REASONS.map(([k, l, d], i) => html`
+        <label><input type="radio" name="why" value="${k}" ${i === 0 ? 'checked' : ''}><b>${l}</b><small>${d}</small></label>`)}</div>
+      <div class="btn-row"><button class="btn" data-v="">Cancel</button><button class="btn primary" data-v="out">${icon('eye-off')}Leave it out</button></div>
+      <p style="margin-top:12px"><button class="btn small ghost danger" data-v="delete">${icon('trash')}Delete it for good instead…</button></p>`,
+    (el, close) => $$('[data-v]', el).forEach((btn) => { btn.onclick = () => close(btn.dataset.v ? { act: btn.dataset.v, reason: $('input[name=why]:checked', el)?.value } : null); }));
+    if (!pick) return;
+    if (pick.act === 'delete') return deleteIt(pick.reason);
+    if (await send({ action: 'leave-out', reason: pick.reason })) again();
+  };
+  if (v.calibration) reviewBox.innerHTML = html`<p class="small muted">Your own drive is already left out of the street's numbers.</p>`.__html;
+  else if (v.leftOut) {
+    reviewBox.innerHTML = html`<div class="callout">${icon('eye-off')}<p>You left this out as <b>${v.leftOut.label || 'not traffic'}</b>. It isn't in Stats, the street report or anything published from now on.
+      <span class="btn-row" style="margin-top:8px"><button class="btn small" id="put-back">Put it back</button><button class="btn small ghost danger" id="del">${icon('trash')}Delete for good</button></span></p></div>`.__html;
+    $('#put-back').onclick = async () => { if (await send({ action: 'put-back' })) again(); };
+    $('#del').onclick = () => deleteIt();
+  } else {
+    reviewBox.innerHTML = html`<div class="callout">${icon('eye-off')}<p>A shadow, a person on the sidewalk, or the camera shaking? Leave it out of the numbers. You can put it back.
+      <span class="btn-row" style="margin-top:8px"><button class="btn small" id="leave-out">Not a vehicle? Leave it out</button></span></p></div>`.__html;
+    $('#leave-out').onclick = leaveOut;
+  }
 
   const shareBox = $('#share');
   const paintShare = () => {

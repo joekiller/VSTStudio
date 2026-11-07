@@ -167,6 +167,36 @@ static void testPublishAndCheck(const fs::path& work) {
 	CHECK(check(again, newer, "2026-11-20T09:30:00", c, err) && again.status() == Verdict::Accurate);
 	CHECK(sentence(again).find("still within") != std::string::npos);
 
+	// A car found not to be traffic after publishing: the frozen files stay, status.json records it, the sentence and
+	// cover say the numbers still count it, and the numbers without it are what a corrected copy would publish.
+	{
+		Info pub;
+		CHECK(read(dir, pub, err));
+		const Point& fast = pub.points[9];   // 29 mph, over the limit
+		CHECK(recordLater(pub, fast.run, fast.frame, "merged", true, "2026-11-21T08:00:00", err));
+		CHECK(!recordLater(pub, fast.run, fast.frame, "merged", true, "2026-11-21T08:01:00", err) && err.empty());   // no change
+		CHECK(!recordLater(pub, "stats_elsewhere.csv", 100, "not-vehicle", true, "2026-11-21T08:00:00", err) && err.empty());
+		CHECK(verify(dir, changed) && changed.empty());
+		Info re;
+		CHECK(read(dir, re, err) && re.later.size() == 1 && re.later[0].reason == "merged" && leftOutSince(re) == std::vector<int>{ 10 });
+		CHECK(sentence(re).find("1 of its cars was found not to be traffic") != std::string::npos);
+		Summary w = summarize(withoutLater(re), re.speedLimit, re.wayOver);
+		CHECK(w.cars == 9 && w.over == 3 && re.summary.cars == 10);
+		CHECK(slurp(fs::path(dir) / "review.html").find("summaryWithout") != std::string::npos);
+		// Put back: it counts again, and the record shows both.
+		CHECK(recordLater(re, fast.run, fast.frame, "merged", false, "2026-11-22T08:00:00", err));
+		Info again2;
+		CHECK(read(dir, again2, err) && again2.later.size() == 2 && leftOutSince(again2).empty());
+		CHECK(sentence(again2).find("not to be traffic") == std::string::npos);
+	}
+	// Left out before publishing: in points.csv with its reason, not in the numbers.
+	{
+		Info in2 = sample();
+		in2.points[0].leftOut = "not-vehicle";
+		CHECK(summarize(in2.points, 25, 35).cars == 9);
+		CHECK(pointsCsv(in2).find(",frame,leftOut\n") != std::string::npos && pointsCsv(in2).find(",100,not-vehicle\n") != std::string::npos);
+	}
+
 	// Tampering is caught.
 	{ std::ofstream(fs::path(dir) / "points.csv", std::ios::app) << "99,,L2R,NE,0,,15,,,,,,,0,0,x,1\n"; }
 	CHECK(verify(dir, changed) && changed.size() == 1 && changed[0] == "points.csv");

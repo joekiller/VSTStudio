@@ -17,6 +17,7 @@
 //   calibration-inputs.json    the measurements the calibration in force was combined from (CalEvidence.h), for this
 //                              config only; absent when none were on record
 //   Stats/calibration-sets.json  the calibration sets of these runs, locked at the speeds they were archived with
+//   Stats/exclusions.json      passes among these runs reviewed by hand (Exclusions.h): left out, put back or deleted
 //   Stats/                     the stats csvs and their run_<stem>.json manifests
 //   HiLites/                   each run's Hilites_<stem>.mp4, when one was made
 //   Clips/                     each vehicle's short clip
@@ -40,6 +41,7 @@
 #pragma once
 #include "CalEvidence.h"
 #include "CalSets.h"
+#include "Exclusions.h"
 #include <opencv2/core.hpp>
 #include <memory>
 #include <string>
@@ -69,6 +71,7 @@ struct Vehicle {
 	int ownDrive = 0;                     // 1: the user's own calibration drive, 2: their check drive; left out of the counts
 	double drivenMph = 0;                 // for those, the speed they said they drove
 	std::string run;                      // the stats csv it came from, by file name (its calibration set); "" in older archives
+	std::string leftOut;                  // reviewed and left out (exclusions::reasonName: "not-vehicle", ...); "" = counted
 };
 
 // The calibration and directions the runs used, for the report's runs that have no manifest of their own.
@@ -103,6 +106,7 @@ struct Info {
 	std::vector<CalPass> passes;          // calibration-passes.csv
 	std::vector<calib::Input> inputs;     // calibration-inputs.json, configPath's entry
 	bool hasPasses = false;               // calibration-passes.csv is there (archives before it have none)
+	exclusions::Store exclusions;         // Stats/exclusions.json (empty in archives before it)
 	const calsets::Set* setOf(const Vehicle& v) const { return v.run.empty() ? nullptr : sets.ofRun(v.run); }
 };
 
@@ -133,6 +137,8 @@ struct Request {
 	// calibration inputs for info.configPath (empty = none on record, no calibration-inputs.json).
 	std::vector<CalPass> passes;
 	std::vector<calib::Input> calInputs;
+	// The data folder's reviewed passes (any runs: write() keeps those of statsCsvs, as Stats/exclusions.json).
+	exclusions::Store exclusions;
 	bool move = true;                     // take the stats csvs, manifests, highlights and clips out of the data folder
 	// Publishing (Dataset.h) uses the same writer: another folder under dataDir, extra files written inside before the
 	// folder is renamed into place, and SHA256SUMS over every file except review.html (rewritten as checks are added)
@@ -161,7 +167,9 @@ std::vector<Info> list(const std::string& dataDir);
 // Puts a moved archive's Stats and HiLites files back into dataDir.  A file of the same name already there is kept and
 // its archived copy left where it is (named in error, which is then a warning: the return value is still true).
 // passesFile: the config folder's calibration-passes.csv, which gets the archive's passes it doesn't already have
-// ("" = leave it alone); passesAdded (optional) counts them, so the app knows to reload its marks.
+// ("" = leave it alone); passesAdded (optional) counts them, so the app knows to reload its marks.  The archive's
+// reviewed passes (Stats/exclusions.json) are merged into the data folder's file the same way: a pass the data folder
+// already has an entry for keeps its own.
 bool restore(const std::string& dir, const std::string& dataDir, std::string& error, const std::string& passesFile = "",
 	int* passesAdded = nullptr);
 

@@ -20,6 +20,7 @@
 #include "CalEvidence.h"
 #include "CalSets.h"
 #include "Dataset.h"
+#include "Exclusions.h"
 #include "Archive.h"
 #include "Calibration.h"
 #include "ParkingLane.h"
@@ -39,6 +40,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -85,6 +87,12 @@ struct ResultRow {
 	double lengthFt = 0;        // that length in feet at the lane, from the calibration (0 = no calibration or no width)
 	int calKind = 0;            // 1: the user's own calibration drive, 2: their check drive (CalPass), left out of the tiles and charts
 	double drivenMph = 0;       // for those, the speed they said they drove
+	// Reviewed by hand and left out (Exclusions.h): not a vehicle, counted twice or a bad reading.  Kept in the table,
+	// greyed, and left out of the tiles, the charts, the street report, the phone's Stats and anything published.
+	bool excluded = false;
+	exclusions::Reason leftOutWhy = exclusions::Reason::NotVehicle;
+	std::string leftOutAt;      // when it was left out (ISO 8601), "" when unknown (an archive)
+	bool traffic() const { return !calKind && !excluded; }   // counts in the street's numbers
 	// Calibration sets (CalSets.h): the set the row's run belongs to (0 = none: a csv from outside the data folder, an
 	// archive, or a run still being written), what the tracker measured, and the zone feet it measured with.  speed and
 	// the trend fields are the measurement re-timed to the set's calibration (App::applySets), adjusted when that moved them.
@@ -169,6 +177,28 @@ public:
 	// wherever those are given a picked pass, in Studio and the companion API.
 	void markCalibrationPass(const Vehicle& v, bool check, double mph);
 	const CalPass* calibrationPass(const std::string& statsPath, int frame);   // the mark for a csv row, or nullptr
+	// Passes reviewed by hand (Exclusions.h, Review.cpp): Results' "Not a vehicle?" on a pass, and the API's
+	// POST /api/vehicles/review.  Leaving a pass out is a mark that can be undone; deleting its csv row is permanent.
+	//   exclusionsPath(): the exclusions.json that holds a csv's marks: beside it when the csv is in the data folder's
+	//     Stats (or the sample's), else the data folder's own (a csv opened from elsewhere is never written to or beside).
+	//   exclusionsFor(): that file's marks, read once and kept up to date as passes are reviewed.
+	//   leftOutAnyThread(): whether a run's frame is left out, for the API's own threads (a copy kept under a mutex).
+	//   reviewPass(): leave out, put back or delete; updates Results' rows, the record, and any published dataset the
+	//     pass is in (dataset::recordLater).  ok=false with `message` saying why in plain words; else `message` is what
+	//     happened, for a toast.
+	//   whyCantDelete(): "" when the pass's row may be deleted, else why not (a published dataset holds it, its run is
+	//     still recording, or its file isn't VST Studio's to change).
+	//   statsPathForRun(): <data>/Stats/<run> for a saved run's file name ("" when it isn't one: never a path).
+	//   rowFor(): one saved pass as Results would show it (read from its csv, re-timed), for the API.
+	enum class ReviewAction { LeaveOut, PutBack, Delete };
+	struct ReviewResult { bool ok = false; std::string message; std::vector<std::string> published; };
+	std::string exclusionsPath(const std::string& statsPath);
+	const exclusions::Store& exclusionsFor(const std::string& statsPath);
+	bool leftOutAnyThread(const std::string& run, int frame, exclusions::Reason* why = nullptr) const;
+	ReviewResult reviewPass(const std::string& statsPath, int frame, ReviewAction what, exclusions::Reason why);
+	std::string whyCantDelete(const std::string& statsPath, int frame);
+	std::string statsPathForRun(const std::string& run);
+	bool rowFor(const std::string& statsPath, int frame, ResultRow& out);
 	// After an apply: a live run (camera or stream) is restarted so the passes from here on are measured with the new
 	// calibration (a running engine keeps the settings it started with).  A video run just says it applies next time.
 	void restartAfterCalibration();
@@ -429,6 +459,11 @@ private:
 	void publishDialog();
 	void removeDialog();
 	void recheckDialog();
+	// Results' detail card for a pass reviewed by hand, and the "Leave this pass out" and "Delete this pass" dialogs
+	// (Review.cpp).  reviewRow_ is the row they act on (Results' rows index), kept while a dialog is open.
+	void reviewCard(const ResultRow& r, int row);
+	void reviewDialogs();
+	void markRowsReviewed(const std::string& run, int frame, bool excluded, exclusions::Reason why, const std::string& at);
 	std::vector<ResultRow> rowsOfRuns(const std::vector<std::string>& csvs);   // every row of those runs, with session snapshots
 	bool publishSet(int setId, const std::string& name, std::string& dir, std::string& error);
 	bool publishCorrected(const dataset::Info& d, const dataset::Calibration& newer, std::string& dir, std::string& error);
@@ -525,6 +560,14 @@ private:
 	CalCheck lastCheck_;                // the latest check pass, for the result card
 	std::map<std::string, CalPass> calPasses_;   // calibration-passes.csv by report::passKey, read once
 	bool calPassesLoaded_ = false;
+	std::map<std::string, exclusions::Store> excl_;   // exclusions.json by path (exclusionsFor), read once each
+	mutable std::mutex exclMu_;
+	std::map<std::string, exclusions::Reason> exclKeys_;   // every loaded store's left-out passes by key, for leftOutAnyThread()
+	void exclKeysChanged();             // rebuilds exclKeys_ from excl_
+	int reviewRow_ = -1;
+	int leaveReason_ = 0;               // the reason picked in "Leave this pass out" (exclusions::Reason)
+	bool openLeaveOut_ = false, openDeletePass_ = false;   // open that dialog on the next Results frame
+	std::string reviewError_;
 	calsets::Store sets_;               // calibration-sets.json, as syncSets() last left it
 	bool setsLoaded_ = false;
 	double setsAt_ = -1;                // ImGui::GetTime() of the last scan

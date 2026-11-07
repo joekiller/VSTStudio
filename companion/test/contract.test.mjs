@@ -68,7 +68,10 @@ const VEHICLE = {
   // null when VST couldn't tell; entry + exit average the speed (each rounded), and a steady pass is projected at its exit.
   trend: (t) => t === null || (['decelerating', 'steady', 'accelerating', 'rapid'].includes(t.kind)
     && isInt(t.entry) && isInt(t.exit) && isNum(t.accel) && isInt(t.in20ft) && t.in20ft >= 0),
+  // null while it counts; once reviewed and left out by hand, why.
+  leftOut: (o) => o === null || (REASONS.includes(o.reason) && isStr(o.label) && o.label.length > 0),
 };
+const REASONS = ['not-vehicle', 'twice', 'bad-reading', 'merged'];
 
 /** "Every error is JSON {"error": "message"}." */
 function assertError(r, status, where) {
@@ -881,5 +884,46 @@ describe('calibration state and checks', () => {
     assert.equal(r.data.ok, true, JSON.stringify(r.data.problems));
     assert.equal(r.data.direction, 'L2R');
     assert.ok(Math.abs(r.data.measuredMph - measured(cfg, 'L2R', frames, 30)) < 0.051);
+  });
+});
+
+describe('POST /api/vehicles/review', () => {
+  const REVIEW = { ok: isBool, problems: Array.isArray, message: isStr, leftOut: (o) => o === null || REASONS.includes(o.reason),
+    deleted: isBool, published: (p) => Array.isArray(p) && p.every(isStr) };
+
+  it('400s a body that names no action or no pass', async () => {
+    assertError(await api.post('/api/vehicles/review', { run: 'stats_x.csv', frame: 1 }), 400, 'no action');
+    assertError(await api.post('/api/vehicles/review', { action: 'leave-out' }), 400, 'no pass');
+  });
+
+  it('refuses a run that isn\'t a saved run\'s file name, without touching anything', async () => {
+    for (const run of ['../VST.cfg', 'stats_nope_19990101_000000.csv']) {
+      const r = await api.post('/api/vehicles/review', { run, frame: 1, action: 'leave-out' });
+      assert.equal(r.status, 200);
+      assertShape(r.data, REVIEW, `review ${run}`);
+      assert.equal(r.data.ok, false);
+      assert.ok(r.data.problems.length > 0);
+    }
+  });
+
+  it('leaves a saved pass out and puts it back, and the list says so each time', async (ctx) => {
+    if (!t.mutate) return ctx.skip('changes exclusions.json; set MUTATE=1 to run against a real VST Studio');
+    const { data: all } = await api.get('/api/vehicles?scope=saved&limit=5000');
+    const v = all.find((x) => !x.leftOut && !x.calibration);
+    assert.ok(v || t.mock === false, 'the mock has saved passes to review');
+    if (!v) return;   // a fresh VST Studio may have no saved runs yet
+    const find = async () => (await api.get(`/api/vehicles?scope=saved&run=${encodeURIComponent(v.run)}&limit=20000`)).data.find((x) => x.frame === v.frame);
+    let r = await api.post('/api/vehicles/review', { run: v.run, frame: v.frame, action: 'leave-out', reason: 'merged' });
+    assertShape(r.data, REVIEW, 'leave-out');
+    assert.equal(r.data.ok, true, r.data.message);
+    assert.equal(r.data.leftOut.reason, 'merged');
+    assert.equal((await find()).leftOut?.reason, 'merged');
+    r = await api.post('/api/vehicles/review', { run: v.run, frame: v.frame, action: 'put-back' });
+    assert.equal(r.data.ok, true, r.data.message);
+    assert.equal((await find()).leftOut, null);
+    // Putting back what isn't left out is a problem in words, not an error.
+    r = await api.post('/api/vehicles/review', { run: v.run, frame: v.frame, action: 'put-back' });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.ok, false);
   });
 });

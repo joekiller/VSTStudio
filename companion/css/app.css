@@ -230,6 +230,13 @@ p { margin: 0 0 12px; color: var(--text-2); text-wrap: pretty; }   /* no one-wor
 .sign.warn { --rim: var(--warn); }
 .sign.bad { --rim: var(--bad); }
 .sign.wrong { --rim: var(--wrong); }
+.sign.out { --rim: var(--muted); opacity: .7; }
+.pass.left-out { opacity: .72; }
+.reasons { display: grid; gap: 8px; margin: 12px 0; }
+.reasons label { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; min-height: 44px; }
+.reasons input { margin: 3px 0 0; width: 18px; height: 18px; accent-color: var(--accent); }
+.reasons small { grid-column: 2; color: var(--muted); }
+.reasons label:has(input:checked) { border-color: var(--accent); }
 .sign.lg { width: 112px; height: 136px; border-radius: 14px; border-width: 4px; }
 .sign.lg small { font-size: 14px; }
 .sign.lg b { font-size: 56px; margin: 4px 0; }

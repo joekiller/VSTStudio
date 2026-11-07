@@ -11,6 +11,7 @@ computer is in [Installing](install.md#where-settings-and-data-live).
 | `Stats/stats_<name>.csv` | One row per vehicle measured ([below](#the-stats-csv)). |
 | `Stats/run_<name>.json` | How that csv was made: source, period, outages, calibration ([below](#the-run-manifest)). |
 | `Stats/health.csv` | One row per day a live camera ran ([below](#the-daily-health-log)). |
+| `Stats/exclusions.json` | Passes you reviewed by hand: left out (not a vehicle, a person merged with a car, counted twice, a bad reading), put back, or deleted for good. Each by its csv and frame, with why and when ([VST Studio](vst-studio.md#results)). |
 | `Stats/calibration-sets.json` | Which runs share a camera view and calibration, so past speeds can follow a recalibration ([VST Studio](vst-studio.md#results)). |
 | `Clips/` | A short clip of each vehicle (VST Studio). Pruned oldest first to the disk budget. |
 | `HiLites/` | Highlights videos, if enabled; `HiLites/forPosting/` holds what you kept in `ProcessHiLites`. |

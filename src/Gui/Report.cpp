@@ -316,6 +316,7 @@ std::vector<Run> loadRuns(const Input& in, std::vector<Obs>& obs) {
 		auto zone = in.zoneFt.find(run.name);
 		for (const StatsRow& r : rows) {
 			if (in.calibrationPasses.count(passKey(run.name, r.frame))) { run.calibrationDrives++; continue; }
+			if (in.excluded.count(passKey(run.name, r.frame))) { run.leftOut++; continue; }
 			Obs o;
 			o.run = idx;
 			o.t = rowTime(r, recordingStart, fps);
@@ -683,6 +684,11 @@ Study analyze(const Input& in, const Settings& s) {
 	int calDrives = 0;
 	for (const Run& r : st.runs) calDrives += r.calibrationDrives;
 	if (calDrives) st.caveats.push_back(count(calDrives, "calibration or check drive", "calibration or check drives") + " by the person setting up VST left out of every statistic.");
+	int leftOut = 0;
+	for (const Run& r : st.runs) leftOut += r.leftOut;
+	if (leftOut) st.caveats.push_back(count(leftOut, "detection was", "detections were") + " reviewed by hand and left out of every statistic: "
+		"not a vehicle (a shadow, a person, the camera moving), the same vehicle counted twice, a person on the sidewalk timed together with a car, or a reading that can't be right. "
+		"They stay in the data, marked, in Stats/exclusions.json.");
 	if (legals.size() > 1) st.caveats.push_back("The one-way setting (LegalDirection) changed between runs; the wrong-way count uses each run's own setting.");
 	for (int k = 0; k < 2; k++)
 		if (st.checkMismatch[k])
@@ -1405,7 +1411,9 @@ std::string renderHtml(const Study& st) {
 	h << "<li>Vehicles timed under " << st.minLoggedSpeed << " mph (the logging minimum): mostly walkers, cyclists and cars turning or parking, not free-flowing traffic.</li>";
 	h << "<li>Vehicles that couldn't be timed cleanly (two vehicles overlapping, a vehicle hidden behind another): their crossing can't be measured.</li>";
 	h << "<li>Speeds flagged as implausible (more than 20 mph over the “way over” setting): usually two vehicles merged into one; they're left out of every statistic.</li>";
-	h << "<li>Vehicles tracked across a camera dropout: dropped, so no speed is ever measured across a gap.</li></ul>";
+	h << "<li>Vehicles tracked across a camera dropout: dropped, so no speed is ever measured across a gap.</li>";
+	h << "<li>Detections a person reviewed and marked as not traffic: not a vehicle (a shadow, a person or animal, the camera moving), the same vehicle counted twice, "
+	  << "or a reading that can't be right. They stay in the data, marked with the reason, and are left out of every statistic; the limitations below say how many.</li></ul>";
 	h << "<h3>Statistics</h3><p><b>Percentiles use the nearest-rank method:</b> sort the n speeds; the p-th percentile is the value at position ⌈p/100 × n⌉. "
 	  << "The 85th percentile is the speed at or below which 85% of vehicles travel, the figure traffic engineers use to review a speed limit. "
 	  << "“Over the limit” means strictly above " << s.speedLimit << " mph. Hour-of-day figures use the local clock time of each vehicle, and hourly percentiles are shown only for hours with at least " << kMinCell << " vehicles. "
@@ -1429,6 +1437,7 @@ std::string renderHtml(const Study& st) {
 			if (r.timesDerived) notes += std::string(notes.empty() ? "" : "; ") + "times from Date/Time";
 			if (!r.vst.empty()) notes += std::string(notes.empty() ? "" : "; ") + "VST " + r.vst;
 			if (r.manifest && !r.complete) notes += std::string(notes.empty() ? "" : "; ") + "in progress";
+			if (r.leftOut) notes += std::string(notes.empty() ? "" : "; ") + std::to_string(r.leftOut) + " left out by hand";
 			h << "<tr><td class='tab'>" << esc(r.name) << "</td><td>" << (r.manifest ? "yes" : "no") << "</td><td class='n'>" << rowsPer[i] << "</td><td>" << esc(notes) << "</td></tr>";
 		}
 		if (listed > 25) h << "<tr><td colspan='4' class='muted'>and " << listed - 25 << " more files</td></tr>";

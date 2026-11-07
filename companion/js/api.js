@@ -119,6 +119,11 @@ export class Vst extends EventTarget {
   calibrationDistance(body) { return this.request('POST', '/api/calibration/distance', body); }
   /** Take one calibration measurement out ({ id, removed: true }) or put it back ({ id, removed: false }). */
   calibrationInputs(body) { return this.request('POST', '/api/calibration/inputs', body); }
+  /**
+   * Review one pass by hand (POST /api/vehicles/review): `{ id }` or `{ run, frame }`, plus `action` "leave-out" (with a
+   * `reason`), "put-back" or "delete". Resolves to `{ ok, problems, message, leftOut, deleted, published }`.
+   */
+  review(body) { return this.request('POST', '/api/vehicles/review', body); }
   calibrationCar(body) { return this.request('POST', '/api/calibration/car', body); }
   calibrationCars() { return this.request('GET', '/api/calibration/cars'); }
 

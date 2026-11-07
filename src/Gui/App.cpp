@@ -750,6 +750,9 @@ void App::rowsFromStats(const std::vector<StatsRow>& stats, const calsets::RunIn
 	const std::string& label, std::vector<ResultRow>& out) {
 	const Globals& g = cfg.g;
 	out.reserve(out.size() + stats.size());
+	// Passes reviewed by hand (Exclusions.h): looked up by the csv's file name and the row's frame.
+	const exclusions::Store& reviewed = exclusionsFor(path);
+	const std::string runName = fs::path(path).filename().string();
 	for (const StatsRow& s : stats) {
 		ResultRow r;
 		r.source = label;
@@ -768,6 +771,11 @@ void App::rowsFromStats(const std::vector<StatsRow>& stats, const calsets::RunIn
 		// Older csvs only have Date/Time, which for Foscam recordings is when the recording started.
 		r.time = !s.timestamp.empty() ? s.timestamp.substr(0, 19) : s.date.empty() ? "" : foscamPassed(s.date, s.time, s.frame, r.fps);
 		if (const CalPass* p = calibrationPass(path, r.frame)) { r.calKind = p->check ? 2 : 1; r.drivenMph = p->drivenMph; }
+		if (const exclusions::Mark* m = reviewed.find(runName, r.frame); m && m->state == exclusions::State::Excluded) {
+			r.excluded = true;
+			r.leftOutWhy = m->reason;
+			r.leftOutAt = m->changedAt;
+		}
 		r.trend = s.trend;
 		r.entryMph = s.entryMph;
 		r.exitMph = s.exitMph;
@@ -851,6 +859,13 @@ void App::showSessionResults() {
 		r.widthPx = v.ev.width;
 		r.statsPath = v.statsPath;
 		if (const CalPass* p = calibrationPass(v.statsPath, r.frame)) { r.calKind = p->check ? 2 : 1; r.drivenMph = p->drivenMph; }
+		if (!v.statsPath.empty())
+			if (const exclusions::Mark* m = exclusionsFor(v.statsPath).find(fs::path(v.statsPath).filename().string(), r.frame);
+				m && m->state == exclusions::State::Excluded) {
+				r.excluded = true;
+				r.leftOutWhy = m->reason;
+				r.leftOutAt = m->changedAt;
+			}
 		const vst::SpeedTrend& t = v.ev.trend;
 		if (t.known()) {
 			// Rounded the way the csv rounds them, so a session row and the same car read back from the csv match.
@@ -942,6 +957,10 @@ bool App::openArchive(const std::string& dir) {
 		r.mphIn20ft = v.mphIn20ft;
 		r.calKind = v.ownDrive;
 		r.drivenMph = v.drivenMph;
+		r.excluded = !v.leftOut.empty();
+		r.leftOutWhy = exclusions::reasonFrom(v.leftOut);
+		if (r.excluded && !v.run.empty())
+			if (const exclusions::Mark* m = a.exclusions.find(v.run, v.frame)) r.leftOutAt = m->changedAt;
 		if (const calsets::Set* set = a.setOf(v)) r.setId = set->id;   // its band, from the archive's own sets
 		if (!v.snapshot.empty()) r.snapshotPath = (fs::path(a.dir) / fs::path(v.snapshot)).string();
 		if (!v.clip.empty()) r.clipPath = (fs::path(a.dir) / fs::path(v.clip)).string();
@@ -1030,6 +1049,7 @@ archive::Request App::archiveRequest(const std::string& name, bool move, const s
 		v.mphIn20ft = r.mphIn20ft;
 		v.ownDrive = r.calKind;
 		v.drivenMph = r.drivenMph;
+		v.leftOut = r.excluded ? exclusions::reasonName(r.leftOutWhy) : "";
 		v.run = r.statsPath.empty() ? std::string() : fs::path(r.statsPath).filename().string();
 		Vehicle tv;
 		if (r.vehicleId && tracker.vehicle(r.vehicleId, tv)) { s.snapshot = tv.snapshotJpg; s.clipPath = tv.clipPath; }
@@ -1039,6 +1059,11 @@ archive::Request App::archiveRequest(const std::string& name, bool move, const s
 	// and its street report still leaves them out, wherever it is opened.
 	calibrationPass("", 0);   // load calibration-passes.csv
 	for (const auto& kv : calPasses_) req.passes.push_back(kv.second);
+	// Passes reviewed by hand among these runs (write() keeps only theirs): from each csv's own record.  While reviewing,
+	// the archive's own record.
+	if (reviewing()) req.exclusions = archive_.exclusions;
+	else
+		for (const std::string& csv : req.statsCsvs) exclusions::merge(req.exclusions, exclusionsFor(csv));
 	// The calibration sets of those runs, frozen at the speeds they are archived with: the street report made from the
 	// archive re-times its csvs to these, so it agrees with the archived rows (archiveReportInput).  And what the
 	// calibration in force was measured from, so the reviewer can say how these speeds were calibrated.
@@ -4415,13 +4440,16 @@ void App::pageResults() {
 	resultsOpened_ = true;
 
 	// Toolbar: filter, where the rows come from, file actions.
-	static const char* const filters[] = { "All", "Speeding", "Way over", "Wrong way" };
+	// "Left out" (passes reviewed by hand) joins the filter only while some are: it's where to find one to put back.
+	static const char* const filters[] = { "All", "Speeding", "Way over", "Wrong way", "Left out" };
+	const bool anyLeftOut = std::any_of(rows.begin(), rows.end(), [](const ResultRow& r) { return r.excluded; });
+	if (!anyLeftOut && resultsFilter_ == 4) resultsFilter_ = 0;
 	// The file buttons keep their full labels; the filter gives up width first, so the row fits a 1366-1480 px laptop
 	// window instead of pushing "Make report" off the edge.
 	float actionsW = px(16) * 2 + px(180);
 	for (const char* l : { ICON_FOLDER_OPEN " Open", ICON_ARCHIVE " Archive", ICON_FILM " Highlights", ICON_FOLDER " Folder", ICON_REPORT "  Make report" })
 		actionsW += buttonWidth(l) + ImGui::GetStyle().ItemSpacing.x;
-	segmented("rfilter", &resultsFilter_, filters, 4, std::clamp(avail - actionsW, px(300), px(440)));
+	segmented("rfilter", &resultsFilter_, filters, anyLeftOut ? 5 : 4, std::clamp(avail - actionsW, px(300), px(anyLeftOut ? 520 : 440)));
 	ImGui::SameLine(0, px(16));
 	ImGui::SetNextItemWidth(px(180));
 	ImGui::InputTextWithHint("##search", ICON_SEARCH "  min speed or source", searchBuf_, sizeof searchBuf_);
@@ -4476,15 +4504,19 @@ void App::pageResults() {
 	try { if (!search.empty()) minSpeed = std::stoi(search); } catch (...) {}
 	std::vector<const ResultRow*> shown;
 	for (const ResultRow& r : rows) {
+		// Speeding, way over and wrong way are about traffic, so a pass left out by hand isn't among them.
+		if (resultsFilter_ >= 1 && resultsFilter_ <= 3 && r.excluded) continue;
 		if (resultsFilter_ == 1 && r.speed <= limit) continue;
 		if (resultsFilter_ == 2 && r.speed < wayOver) continue;
 		if (resultsFilter_ == 3 && !r.wrongWay) continue;
+		if (resultsFilter_ == 4 && !r.excluded) continue;
 		if (minSpeed > 0 && r.speed < minSpeed) continue;
 		if (!search.empty() && minSpeed == 0 && r.source.find(search) == std::string::npos) continue;
 		if (setFilter_ && r.setId != setFilter_) continue;   // the set bar's "Only this set"
 		shown.push_back(&r);
 	}
 	int ownDrives = int(std::count_if(rows.begin(), rows.end(), [](const ResultRow& r) { return r.calKind != 0; }));
+	int leftOut = int(std::count_if(rows.begin(), rows.end(), [](const ResultRow& r) { return r.excluded && !r.calKind; }));
 	// The menu beside it names the source, so the line just counts.
 	std::string from = reviewing() ? std::string(dataset_.dir.empty() ? "Archived" : "Published") : rowsScope == ResultsScope::Saved ? std::to_string(rowsRuns) + (rowsRuns == 1 ? " run" : " runs")
 		: rowsScope == ResultsScope::File ? std::string("1 run") : std::string("Measured since Studio opened");
@@ -4513,14 +4545,20 @@ void App::pageResults() {
 	}
 	ImGui::SameLine(0, px(12));
 	ImGui::AlignTextToFramePadding();
-	dimText("%s  ·  %zu of %zu vehicles%s", from.c_str(), shown.size(), rows.size(),
-		!ownDrives ? "" : ownDrives == 1 ? "  ·  1 is your own calibration drive, left out of the totals" : ("  ·  " + std::to_string(ownDrives)
-			+ " are your own calibration drives, left out of the totals").c_str());
+	{
+		// What the totals leave out, in words: the user's own drives, and passes reviewed as not traffic.
+		std::string out;
+		if (ownDrives) out += ownDrives == 1 ? "  ·  1 is your own calibration drive" : "  ·  " + std::to_string(ownDrives) + " are your own calibration drives";
+		if (leftOut) out += std::string(ownDrives ? ", " : "  ·  ") + std::to_string(leftOut) + " you left out as not traffic";
+		if (!out.empty()) out += ", not in the totals";
+		dimText("%s  ·  %zu of %zu vehicles%s", from.c_str(), shown.size(), rows.size(), out.c_str());
+	}
 	// Calibration sets: which runs share a calibration, each set's state, and what can be done with it (Sets.cpp).
 	setsBar(avail);
 	publishDialog();
 	removeDialog();
 	recheckDialog();
+	reviewDialogs();
 
 	if (rows.empty() && reviewing()) {
 		ImGui::Dummy(ImVec2(0, px(20)));
@@ -4562,9 +4600,9 @@ void App::pageResults() {
 	int over = 0, way = 0, wrong = 0, top = 0;
 	double sum = 0;
 	std::vector<int> speeds;
-	int traffic = 0;   // every row but the user's own calibration and check drives
+	int traffic = 0;   // every row but the user's own calibration and check drives and passes left out by hand
 	for (const ResultRow& r : rows) {
-		if (r.calKind) continue;
+		if (!r.traffic()) continue;
 		traffic++;
 		over += r.speed > limit;
 		way += r.speed >= wayOver;
@@ -4598,9 +4636,9 @@ void App::pageResults() {
 	float leftW = avail - detailW - px(20);
 	float chartsH = px(210);
 	ImGui::BeginGroup();
-	std::vector<const ResultRow*> charted;   // the charts are the street's traffic: not the user's own drives
+	std::vector<const ResultRow*> charted;   // the charts are the street's traffic: not the user's own drives, nothing left out
 	for (const ResultRow* r : shown)
-		if (!r->calKind) charted.push_back(r);
+		if (r->traffic()) charted.push_back(r);
 	resultsCharts(charted, leftW);
 	ImGui::Dummy(ImVec2(0, px(2)));
 
@@ -4662,7 +4700,8 @@ void App::pageResults() {
 				ImGui::PopID();
 				ImGui::TableNextColumn();
 				std::string s = std::to_string(r.speed) + " mph";
-				ImU32 col = speedColor(r.speed, limit, wayOver);
+				// A pass left out by hand is greyed: it's still there to see, but it isn't a speeder.
+				ImU32 col = r.excluded ? c::faint : speedColor(r.speed, limit, wayOver);
 				linePill(s.c_str(), c::bg0, col, fonts.strong);
 				if (r.adjusted) {
 					// Re-timed to its set's newer calibration: a small mark, the measured value on hover.
@@ -4686,6 +4725,13 @@ void App::pageResults() {
 					if (ImGui::IsItemHovered())
 						ImGui::SetTooltip("Your own %s drive at %g mph: left out of the totals, the charts and the street report",
 							r.calKind == 1 ? "calibration" : "check", std::round(r.drivenMph * 10) / 10);
+				}
+				else if (r.excluded) {
+					ImGui::SameLine();
+					std::string why = std::string(ICON_EYE_SLASH " ") + exclusions::reasonLabel(r.leftOutWhy);
+					linePill(why.c_str(), c::bg0, c::faint);
+					if (ImGui::IsItemHovered())
+						ImGui::SetTooltip("You left this out of the totals, the charts and the street report.\nPick it to see why, or to put it back.");
 				}
 				else if (r.wrongWay) { ImGui::SameLine(); linePill(ICON_WARN " wrong way", c::rgb(0xFFFFFF), c::wrong); }
 				ImGui::TableNextColumn();
@@ -4745,7 +4791,7 @@ void App::pageResults() {
 			ImGui::GetWindowDrawList()->AddText(p + (ImVec2(w, w * .4f) - ts) * .5f, c::faint, why);
 			ImGui::Dummy(ImVec2(w, w * .4f));
 		}
-		ImU32 col = r.wrongWay ? c::wrong : speedColor(r.speed, limit, wayOver);
+		ImU32 col = r.excluded ? c::faint : r.wrongWay ? c::wrong : speedColor(r.speed, limit, wayOver);
 		ImGui::PushFont(fonts.hero);
 		ImGui::PushStyleColor(ImGuiCol_Text, v4(col));
 		ImGui::Text("%d", r.speed);
@@ -4759,6 +4805,11 @@ void App::pageResults() {
 			snprintf(what, sizeof what, "%s  YOU, %s AT %g MPH", r.calKind == 1 ? ICON_RULER : ICON_BULLSEYE, r.calKind == 1 ? "CALIBRATING" : "CHECKING",
 				std::round(r.drivenMph * 10) / 10);
 			pill(what, c::bg0, c::accent2, fonts.strong);
+		}
+		else if (r.excluded) {
+			std::string what = std::string(ICON_EYE_SLASH "  LEFT OUT: ") + exclusions::reasonLabel(r.leftOutWhy);
+			for (char& ch : what) ch = char(std::toupper((unsigned char)ch));
+			pill(what.c_str(), c::bg0, c::faint, fonts.strong);
 		}
 		else if (r.wrongWay) pill(ICON_WARN "  WRONG WAY", c::rgb(0xFFFFFF), c::wrong, fonts.strong);
 		else if (r.speed >= wayOver) pill(ICON_BOLT "  WAY OVER THE LIMIT", c::bg0, c::bad, fonts.strong);
@@ -4821,12 +4872,14 @@ void App::pageResults() {
 		Vehicle v;
 		if (r.vehicleId && tracker.vehicle(r.vehicleId, v)) clip = v.clipPath;
 		if (!clip.empty() && ghostButton(ICON_FILM "  Play clip", ImVec2(-FLT_MIN, 0))) openWithSystem(clip);
-		if (r.vehicleId && ghostButton(ICON_RULER "  This was me: calibrate from it", ImVec2(-FLT_MIN, 0))) {
+		if (r.vehicleId && !r.excluded && ghostButton(ICON_RULER "  This was me: calibrate from it", ImVec2(-FLT_MIN, 0))) {
 			calibPickId_ = r.vehicleId;
 			calibMode_ = 0;
 			calibChecking_ = false;   // "calibrate from it", not check it
 			page = Page::Calibrate;
 		}
+		// Not traffic after all?  Leave it out (or put it back), or delete it for good (Review.cpp).
+		reviewCard(r, selectedRow_);
 		endCard();
 	}
 	else {
@@ -4939,6 +4992,8 @@ report::Input App::reportInput(bool snapshots, const std::string& from, const st
 	in.current.minLoggedSpeed = g.minLoggedSpeed;
 	calibrationPass("", 0);   // load calibration-passes.csv
 	for (const auto& kv : calPasses_) in.calibrationPasses.insert(kv.first);
+	// Passes reviewed by hand and left out: the record beside the Stats csvs the report reads.
+	in.excluded = exclusionsFor((fs::path(in.dataDir) / "Stats" / "x.csv").string()).keys();
 	// Each run at its calibration set's zone feet, the same speeds Results shows (CalSets.h).
 	syncSets(true);
 	for (const calsets::Set& s : sets_.sets) {
@@ -4977,6 +5032,10 @@ report::Input App::archiveReportInput(bool snapshots, const std::string& from, c
 		calibrationPass("", 0);
 		for (const auto& kv : calPasses_) in.calibrationPasses.insert(kv.first);
 	}
+	// Passes left out by hand when it was archived (Stats/exclusions.json), or marked so in its rows.
+	in.excluded = a.exclusions.keys();
+	for (const archive::Vehicle& v : a.vehicles)
+		if (!v.leftOut.empty() && !v.run.empty()) in.excluded.insert(report::passKey(v.run, v.frame));
 	// The calibration sets it was archived with (Stats/calibration-sets.json), so the report re-times its runs the way
 	// Results showed them when they were archived.
 	for (const calsets::Set& s : calsets::load((fs::path(a.dir) / "Stats").string()).sets)

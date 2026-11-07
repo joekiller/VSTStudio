@@ -72,7 +72,7 @@ UTF-8 JSON. Readers ignore fields they don't know. A reader refuses a dataset wh
 
 ### summary
 
-Counted over traffic only: rows with `flagged` = 0 and `ownDrive` = 0.
+Counted over traffic only: rows with `flagged` = 0, `ownDrive` = 0 and `leftOut` empty.
 
 | Field | Meaning |
 |---|---|
@@ -105,6 +105,7 @@ Comma-separated, a header row, UTF-8. A cell holding a comma, a quote or a newli
 | `ownDrive` | 1 = a calibration drive, 2 = a check drive; listed but left out of `summary` |
 | `run` | The stats csv in `Stats/` it came from |
 | `frame` | Frame number in that run |
+| `leftOut` | Empty, or why a person reviewed this car and left it out before publishing: `not-vehicle`, `merged` (a person on the sidewalk timed together with a car), `twice` or `bad-reading`; listed but left out of `summary`. Added within `/1`, so older files lack the column |
 
 ### Recomputing a speed
 
@@ -121,8 +122,20 @@ the published zone when the set's calibration changed since (within half a mph).
 { "schema": "vst-dataset/1", "id": "...", "status": "tainted", "checks": [ { ... }, ... ] }
 ```
 
-`status` is the latest check's verdict (`accurate`, `review`, `tainted`), or `""` when never re-checked. Each entry of
-`checks`, oldest first:
+`status` is the latest check's verdict (`accurate`, `review`, `tainted`), or `""` when never re-checked. When a car was
+found not to be traffic after publishing, `exclusions` lists each review, oldest first (absent when there were none):
+
+| Field | Meaning |
+|---|---|
+| `when` | ISO 8601 time of the review |
+| `n`, `run`, `frame` | The car: its row in `points.csv`, and its run and frame |
+| `reason` | As `leftOut` in `points.csv` |
+| `state` | `excluded` (left out) or `restored` (put back); a car's latest entry is what stands |
+
+The published files don't change: the numbers in `dataset.json` still count those cars, which review.html and VST
+Studio say, with the numbers without them. A corrected copy (`correctionOf`) leaves them out.
+
+Each entry of `checks`, oldest first:
 
 | Field | Meaning |
 |---|---|
@@ -145,7 +158,7 @@ the published zone when the set's calibration changed since (within half a mph).
 | `before` | Published speed, mph |
 | `after` | Speed with the newer calibration, 2 decimals |
 | `difference` | `after - before` |
-| `includedInNumbers` | 1 when the car counts in `summary` (not flagged, not an own drive) |
+| `includedInNumbers` | 1 when the car counts in `summary` (not flagged, not an own drive, not left out) |
 
 ## The re-check test
 

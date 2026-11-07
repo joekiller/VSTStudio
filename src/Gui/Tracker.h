@@ -122,6 +122,9 @@ public:
 	// Drops this session's vehicles and slow passes from one run (its stats csv), e.g. when Results sets runs measured
 	// before the latest calibration aside.  Returns how many logged vehicles went.
 	int forgetRun(const std::string& statsPath);
+	// Drops one logged vehicle (its run's csv and Frame) from this session, when its csv row has been deleted (Results'
+	// "Delete for good").  Returns its clip's path ("" when it had none, or isn't in this session) for the caller to delete.
+	std::string forgetPass(const std::string& statsPath, int frame);
 	std::string runningStatsPath();          // the csv the engine is writing now, "" when not running
 	std::vector<std::string> logTail(size_t n);
 	std::string lastStatsPath();

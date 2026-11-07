@@ -68,6 +68,9 @@ struct Input {
 	// Calibration and check drives (passKey of each, from calib::loadPasses): the person calibrating isn't traffic, so
 	// these rows are left out of every statistic and counted in Run::calibrationDrives.
 	std::set<std::string> calibrationPasses;
+	// Passes the user reviewed and left out (Exclusions.h: not a vehicle, counted twice, a bad reading), by the same key:
+	// left out of every statistic and counted in Run::leftOut, so the report says how many.
+	std::set<std::string> excluded;
 	// Calibration sets (CalSets.h): the zone feet, L2R and R2L, each run (stats csv file name) is shown at.  A run listed
 	// here is re-timed from its manifest's calibration to these, exactly as Results shows it; others are read as measured.
 	std::map<std::string, std::pair<double, double>> zoneFt;
@@ -113,6 +116,7 @@ struct Run {
 	int skipped = 0;                      // malformed rows
 	int adjusted = 0;                     // rows re-timed to a newer calibration of the same view (Input::zoneFt)
 	int calibrationDrives = 0;            // rows left out as the user's own calibration or check drives (Input::calibrationPasses)
+	int leftOut = 0;                      // rows the user reviewed and left out (Input::excluded)
 	std::string problem;                  // manifest present but unreadable, etc.
 };
 

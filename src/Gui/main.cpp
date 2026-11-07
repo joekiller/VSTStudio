@@ -244,7 +244,21 @@ struct DemoScript {
 			break;
 		case 7:
 			if (frames == 5) app.toasts_.clear();
-			if (frames == 20) { shot("06-results.png"); next(); }
+			if (frames == 20) shot("06-results.png");
+			// The selected (fastest) pass reviewed by hand: the "Leave this pass out" dialog, then the row left out, greyed,
+			// with the tiles leaving it out.  In memory only, as the tour writes nothing.
+			if (frames == 21 && app.selectedRow_ >= 0) { app.reviewRow_ = app.selectedRow_; app.leaveReason_ = 0; app.openLeaveOut_ = true; }
+			if (frames == 40) shot("06b-leave-out.png");
+			if (frames == 41 && app.selectedRow_ >= 0) {
+				ImGui::ClosePopupToLevel(0, true);
+				const ResultRow r = app.rows[app.selectedRow_];
+				int before = int(std::count_if(app.rows.begin(), app.rows.end(), [](const ResultRow& x) { return x.traffic(); }));
+				App::ReviewResult res = app.reviewPass(r.statsPath, r.frame, App::ReviewAction::LeaveOut, exclusions::Reason::NotVehicle);
+				int after = int(std::count_if(app.rows.begin(), app.rows.end(), [](const ResultRow& x) { return x.traffic(); }));
+				if (!res.ok || after != before - 1) fail("leaving a pass out: " + res.message);
+			}
+			if (frames == 45) app.toasts_.clear();
+			if (frames == 60) { shot("06c-left-out.png"); next(); }
 			break;
 		case 8:
 			if (frames == 1) {

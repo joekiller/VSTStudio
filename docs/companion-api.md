@@ -207,7 +207,29 @@ Results shows them, re-timed to their [calibration set](#get-apisets)'s calibrat
   trend follow the csv's compass label read with today's settings, as in Results.
 * `calibration` is `"drive"` or `"check"` for a pass the user marked as their own calibration or check drive (the
   companion's Stats leave those out, as Results' tiles do), else `null`.
+* `leftOut` (here and on this session's passes) is `null`, or `{"reason", "label"}` once someone reviewed the pass and
+  left it out ([`POST /api/vehicles/review`](#post-apivehiclesreview)): `reason` is `not-vehicle`, `merged` (a person on
+  the sidewalk timed together with a car), `twice` or `bad-reading`, `label` its words. The companion's Stats leave
+  those out, as Results' tiles do.
 * `400` `{"error"}` for any other `scope`; `503` `{"error"}` when VST Studio is too busy to answer.
+
+### `POST /api/vehicles/review`
+
+Review one pass by hand, as Results' **Not a vehicle? Leave it out** does on the desktop.
+
+```json
+{ "run": "stats_camera0_20261107_201500.csv", "frame": 51234, "action": "leave-out", "reason": "merged" }
+```
+
+* Name the pass by `run` (a saved run's file name, never a path) and `frame`, or by this session's `id`.
+* `action`: `leave-out` (with a `reason`, default `not-vehicle`) marks it, so it stays listed but leaves every number;
+  `put-back` undoes that; `delete` takes its row out of the csv for good (with this session's clip). Marks are kept in
+  `Stats/exclusions.json`, which also keeps one line for each deleted pass.
+* 200 `{"ok", "problems", "message", "leftOut", "deleted", "published"}` either way, like the calibration calls.
+  `message` says what happened in plain words; `problems` why not (an unknown run, a pass not left out, a delete
+  refused because a published dataset holds the pass or its run is still recording). `published` names any published
+  dataset holding the pass: its status now records the review.
+* `400` `{"error"}` for a body with no `action`, or naming no pass.
 
 ### `GET /api/sets`
 

@@ -483,6 +483,25 @@ It stays in the table but is left out of the tiles, the charts and the street re
 isn't traffic. The marks are kept in `calibration-passes.csv` in the config folder (the pass's stats csv and frame),
 so they survive a restart.
 
+**Not a vehicle? Leave it out.** VST times anything that moves through the zone like a car, so now and then a row
+isn't traffic: a shadow or headlights, a person or a dog, the camera shaking in the wind, the same car logged twice, or
+(on a close view) someone on the near sidewalk who covers the lane just as a car comes the other way, timed together as
+one fast "wrong-way" driver. Pick the row and press **Not a vehicle? Leave it out…**, then say why: *Not a vehicle*,
+*Person merged with a car*, *Counted twice* or *Bad reading*. The row stays in the table, greyed with a tag saying why,
+and is left out of the tiles, the charts, the street report, the phone's Stats, archives and anything you publish from
+then on. **Put it back** on the same card undoes it, and the **Left out** filter (shown while any row is) lists them
+all. The marks are kept beside the csvs in `Stats/exclusions.json`, by run and frame.
+
+**Delete it for good…** (on the card, or in the same dialog) takes the row out of its csv instead, with this
+session's snapshot and clip. It can't be undone, so leaving out is the usual choice; deleting is for test passes and
+junk. Even then `exclusions.json` keeps one line saying a pass was deleted, when, its speed and why, so the data stays
+honest. A pass can't be deleted while its run is still recording, when its file isn't one VST Studio keeps (an opened
+csv, an archive or a 2016 folder: leave it out instead), or when a published dataset holds it.
+
+A published dataset never changes. Leaving out one of its cars afterwards is recorded in its `status.json`; its cover
+then says the published numbers still count a car found not to be traffic, shows the numbers without it, and offers
+**Publish a corrected copy** without it. The phone does the same from a pass's page (**Is this right?**).
+
 **Calibration sets: past speeds follow your calibration.** VST times each car between the two speed lines, and its
 speed is the zone's length over that time. A calibration only changes the zone's length, so when you calibrate the
 same view again every earlier car can be re-timed exactly: each run's manifest records the calibration it was measured
@@ -704,7 +723,7 @@ holds the 2016 results for it, by Studio or the command-line tool, writes `stats
 | App preferences | `vst-studio.ini` in the same config folder: speed limit, site planner inputs and where they came from, the last source and page, recent sources, pairing token, the 2016 setup found and picked up |
 | 2016 settings | `VST-2016.cfg` in the same config folder: Studio's copy of a 2016 `VST.cfg` (see [Coming from the 2016 VideoSpeedTracker](#coming-from-the-2016-videospeedtracker)) |
 | Calibration history | `calibration-history.csv` in the same config folder: every calibration and check, appended (see [Calibration history](#calibration-history)) |
-| Results | the data folder (`dataPathPrefix`, or the per-user data folder when blank): `Stats/` (csv and run manifests), `HiLites/`, `Clips/`, `Trace/`, street reports in `Reports/`, archived datasets in `Archive/`, published datasets in `Published/`, and the calibration sets in `Stats/calibration-sets.json` |
+| Results | the data folder (`dataPathPrefix`, or the per-user data folder when blank): `Stats/` (csv and run manifests), `HiLites/`, `Clips/`, `Trace/`, street reports in `Reports/`, archived datasets in `Archive/`, published datasets in `Published/`, the calibration sets in `Stats/calibration-sets.json`, and passes you left out or deleted in `Stats/exclusions.json` |
 
 ## For developers
 

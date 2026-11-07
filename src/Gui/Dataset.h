@@ -9,7 +9,8 @@
 //                       direction) and the headline numbers.  Never changed after publishing.
 //   points.csv          one row per car: the documented columns (Point), nothing internal.  Never changed.
 //   SHA256SUMS          checksums of every file above (not review.html, status.json or checks/), `sha256sum -c` format
-//   status.json         appended to: one entry per check against a later calibration, with its verdict
+//   status.json         appended to: one entry per check against a later calibration, with its verdict, and one per
+//                       point found not to be traffic after publishing (left out by hand, or put back: `exclusions`)
 //   checks/<when>.csv   for each check, every point's speed before and after and the difference
 //
 // Re-checking (check()): a calibration only rescales speeds, so a later calibration of the same view gives every car a new
@@ -22,7 +23,12 @@
 //   Under review     otherwise                          can't tell yet: another check drive narrows sigma_new
 //
 // The worst direction decides.  A tainted dataset is never edited or hidden: its badge says so and a corrected copy can be
-// published beside it (correctionOf).  No ImGui: tests/dataset_test.cpp drives it.
+// published beside it (correctionOf).
+//
+// Points left out by hand (Exclusions.h): one left out before publishing is in points.csv with its reason in `leftOut`
+// and is not in the numbers, like an own drive.  One left out after publishing can't change the frozen files, so the
+// review is recorded in status.json (recordLater()), the one sentence says the published numbers still count it
+// (leftOutSince()), and a corrected copy at the same calibration leaves it out.  No ImGui: tests/dataset_test.cpp drives it.
 #pragma once
 #include "CalSets.h"
 #include <string>
@@ -52,6 +58,7 @@ struct Point {
 	double lengthFt = 0;
 	bool flagged = false;          // implausible, left out of the numbers
 	int ownDrive = 0;              // 1 calibration drive, 2 check drive: the person calibrating, left out of the numbers
+	std::string leftOut;           // reviewed and left out before publishing (exclusions::reasonName), "" = counted
 	std::string run;               // the stats csv it came from (in Stats/)
 	int frame = 0;                 // its Frame there: run + frame finds the raw row
 };
@@ -89,6 +96,16 @@ struct Check {
 	std::string file;              // checks/<...>.csv
 };
 
+// A point reviewed after publishing (status.json `exclusions`): left out of the street's traffic, or put back.
+struct Later {
+	std::string when;              // ISO 8601
+	int n = 0;                     // the point's row number in points.csv
+	std::string run;               // its run and frame, as in points.csv
+	int frame = 0;
+	std::string reason;            // exclusions::reasonName
+	bool leftOut = true;           // false: put back (it counts again)
+};
+
 struct Info {
 	std::string dir;               // the folder (filled in by read())
 	std::string schema = kSchema;
@@ -105,6 +122,7 @@ struct Info {
 	Summary summary;
 	std::vector<Point> points;
 	std::vector<Check> checks;     // from status.json, oldest first
+	std::vector<Later> later;      // from status.json, oldest first
 	Verdict status() const { return checks.empty() ? Verdict::None : checks.back().verdict; }
 };
 
@@ -126,6 +144,18 @@ bool verify(const std::string& dir, std::vector<std::string>& changed);
 Check evaluate(const Info& in, const Calibration& newer, const std::string& now, std::vector<double>* after = nullptr);
 // evaluate() and record it: checks/<when>.csv, status.json, and review.html redrawn with the new badge.
 bool check(Info& in, const Calibration& newer, const std::string& now, Check& out, std::string& error);
+
+// The points left out after publishing as things stand: the latest Later of each point, when it says left out.  Their
+// row numbers (n), in points.csv order.
+std::vector<int> leftOutSince(const Info& in);
+// The same points with every one of leftOutSince() left out (reason from its Later), for the numbers without them and
+// for a corrected copy.
+std::vector<Point> withoutLater(const Info& in);
+// Records that the point for (run, frame) was left out (or put back) after publishing: appended to status.json, and
+// review.html redrawn.  Nothing is recorded (false, error "") when no point of the dataset is that pass, or when the
+// point was already left out before publishing, or when it is already in that state.  false + error if writing failed.
+bool recordLater(Info& in, const std::string& run, int frame, const std::string& reason, bool leftOut, const std::string& now,
+	std::string& error);
 
 // Plain words for the cover.
 std::string accuracyWords(const Calibration& c, int speedLimit);   // "within ±1 mph at 25 mph (±3%)"
