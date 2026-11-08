@@ -146,6 +146,12 @@ window.addEventListener('beforeunload', (e) => { if (ctx.leaving) { e.preventDef
     vst.useLive(m[2] ? decodeURIComponent(m[2]) : '', decodeURIComponent(m[1]));
     history.replaceState(null, '', `${location.pathname}#/${m[3] === 'map' ? 'map' : 'live'}`);
   }
+  // #demo: the project's home page links here ("Try the phone demo") to open straight into the demo.  On GitHub
+  // Pages there is no VST to pair with (and https can't reach one over plain http), so skipping Connect is kinder.
+  else if (/^#\/?demo$/.test(location.hash)) {
+    vst.useDemo();
+    history.replaceState(null, '', `${location.pathname}#/live`);
+  }
 }
 
 // Offline app shell; service workers only run on https or localhost, so plain-LAN use just skips it.

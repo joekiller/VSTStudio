@@ -656,7 +656,7 @@ function drive({ vst, body, cfg, st, n }) {
     $('#spd-head').textContent = phase === 'check' ? 'Speed for the check drive' : 'Target speed';
     $('#cruise').innerHTML = belowCruiseControl(speed)
       ? html`Most cruise control won't hold under 25 mph. Hold it steady by eye, or record the drive with
-          <a href="https://joekiller.github.io/VSTStudio/?target=${speed}" target="_blank" rel="noopener">VST Ride-along</a>
+          <a href="https://joekiller.github.io/VSTStudio/ride/?target=${speed}" target="_blank" rel="noopener">VST Ride-along</a>
           and VST Studio reads your exact speed from it.`.__html
       : '';
   };

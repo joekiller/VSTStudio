@@ -3,7 +3,8 @@
   VST Ride-along: a phone GPS recorder for calibrating VST Studio without cruise control or a Tesla.
 
   Browsers only give GPS to https pages, and VST Studio serves the companion over plain http on the home network,
-  so this page is published on its own (GitHub Pages, see .github/workflows/pages.yml) and never talks to VST.
+  so this page is published on its own at https://joekiller.github.io/VSTStudio/ride/ (site/assemble.sh,
+  .github/workflows/pages.yml) and never talks to VST.
   It records the phone's position fixes (time, position, GPS speed, accuracy) while you drive past the camera,
   keeps them on the phone, and saves them as a small CSV that VST Studio reads on the Calibrate page, matching the
   pass by GPS at the camera spot or by clock exactly as it does a Tesla dashcam clip (src/Gui/DashCam.cpp).
