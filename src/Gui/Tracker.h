@@ -105,6 +105,11 @@ public:
 		bool live = false;          // camera or stream
 		bool reconnecting = false;  // a live source dropped out and the engine is reopening it
 		std::string sourceStatus;   // the engine's latest reconnect line, e.g. "Reconnecting to camera 0: attempt 3 in 4 s"
+		// Each time a live source came back only after a long gap (vst::SourceStatus::gapSeconds: the computer slept, or
+		// the run was paused), gapSerial goes up by one, with how long it was and whether Pause was the cause.
+		int gapSerial = 0;
+		double gapSeconds = 0;
+		bool gapPaused = false;
 	};
 	Progress progress();
 	std::vector<Job> jobs();
@@ -160,6 +165,7 @@ private:
 	double fps_ = 30;
 	bool liveSource_ = false;
 	std::chrono::steady_clock::time_point paceStart_, lastCopy_, rateStart_;
+	bool pausedSinceFrame_ = false;   // pollKey() held the engine for Pause since the last frame pair
 	int paceFrame0_ = -1, rateFrames_ = 0;
 	cv::Rect box_;
 };

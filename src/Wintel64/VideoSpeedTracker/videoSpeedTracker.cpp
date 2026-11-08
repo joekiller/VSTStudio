@@ -1863,18 +1863,71 @@ void printSummary(){
 // after a growing wait (reconnectWaits), for as long as it takes or until the run is stopped.  Vehicles being tracked when the
 // picture stopped are dropped, so no speed is ever measured across a gap, and frames keep counting from where they were so
 // the csv Frame column never goes backwards.
+//
+// A source can also come back from a gap without ever failing a read: the computer slept (or the run was paused, or the
+// whole machine stalled), and the first reads after it hand back frames the camera's driver or the stream's socket buffered
+// before it, followed by frames from minutes or hours later.  VST times a car by counting frames, so a track that runs across
+// such a gap is timed as if no time had passed: a car seen entering before the sleep and a different one leaving after it
+// becomes one impossibly fast (or wrong-way) pass.  The camera can also wake on its defaults (automatic shutter, another
+// mode).  So a live source whose frames stop arriving for kGapSeconds is treated as a dropout that has just ended: the pair
+// read after the gap is thrown away, tracks are dropped, the gap goes in the manifest's outages, and the source is reopened
+// at once, which flushes the stale frames and puts the opening policy (mode, fixed shutter) back.  measuredGap() says how
+// long it was.
 const int reconnectWaits[] = { 1, 2, 4, 8, 16, 30 };  // seconds before each reopen attempt; the last one repeats forever
 int reconnectAttempts = 0;        // attempts since frames last arrived; 0 while the source is delivering
 double outageStarted = 0;         // clockNow() when the current outage began
 bool stoppedWhileReconnecting = false;
+// Longer than any wait the engine makes on purpose between two pairs (the command line's slowest display, 's', waits 6.25 s
+// per pair; replaying a vehicle's highlight frames takes up to about 2.5 s), and far shorter than any sleep.
+const double kGapSeconds = 8;
+// When the last good pair arrived, on both clocks: the wall clock moves on while a computer sleeps on every system, while
+// steady_clock doesn't on Linux or macOS (but is never set back), so a gap is whichever of the two saw the longer one.
+// lastPairWall < 0 before the first pair of a source, and again after each dropout.
+double lastPairWall = -1;
+chrono::steady_clock::time_point lastPairSteady;
+double lastGapSeconds = 0;        // the gap that started the current outage (sleep or pause), 0 for a plain dropout
+
+// Seconds since the previous pair arrived (0 for the first), and marks now as the latest arrival.
+double measuredGap(){
+	double wall = clockNow();
+	auto steady = chrono::steady_clock::now();
+	double gap = lastPairWall < 0 ? 0 : max(wall - lastPairWall, chrono::duration<double>(steady - lastPairSteady).count());
+	lastPairWall = wall;
+	lastPairSteady = steady;
+	return gap;
+}
+
+// "42 s", "7 min", "3.5 h": a gap's length for the log.
+string gapText(double seconds){
+	char b[32];
+	if (seconds < 90) snprintf(b, sizeof b, "%d s", int(seconds + .5));
+	else if (seconds < 5400) snprintf(b, sizeof b, "%d min", int(seconds / 60 + .5));
+	else snprintf(b, sizeof b, "%.1f h", seconds / 3600);
+	return b;
+}
 
 // Tells an embedding host (VST Studio's "Reconnecting..." badge) that a live source went down or came back.
-void notifySource(bool reconnecting, int attempt, int waitSeconds, const string& message){
+void notifySource(bool reconnecting, int attempt, int waitSeconds, const string& message, double gapSeconds = 0){
 #ifdef VST_EMBEDDED
-	if (hooks && hooks->onSourceStatus) hooks->onSourceStatus({ reconnecting, attempt, waitSeconds, message });
+	if (hooks && hooks->onSourceStatus) hooks->onSourceStatus({ reconnecting, attempt, waitSeconds, message, gapSeconds });
 #else
-	(void)reconnecting; (void)attempt; (void)waitSeconds; (void)message;
+	(void)reconnecting; (void)attempt; (void)waitSeconds; (void)message; (void)gapSeconds;
 #endif
+}
+
+// The start of an outage, whether a read failed or the frames came back after a gap: whatever was in the speed zone can't
+// be finished honestly, so it is dropped, and tracking starts afresh on the first frames after it.  `from` is when the
+// last good frame arrived, which for the manifest is when the gap began.
+void startOutage(double from, const string& why){
+	outageStarted = clockNow();
+	cout << "<" << frameNumber << ">  " << why << "; vehicles being tracked, now dropped: "
+		<< vehiclesGoingRight.size() + vehiclesGoingLeft.size() << endl;
+	if (pleaseTrace) traceFile << "<" << frameNumber << "> Source lost; tracks dropped" << endl;
+	dropTracks();
+	bailing = false;
+	outages.push_back({ from >= 0 ? from : outageStarted, -1 });
+	numObjects = 0;
+	lastPairWall = -1;
 }
 
 // Sleeps for ms, checking every 100 ms for Esc (or, embedded, the host's Stop button, which pollKey reports as Esc).
@@ -1888,17 +1941,30 @@ bool waitOrStop(int ms){
 }
 
 // Reads the next frame pair into frame1/frame2.  Returns false at the end of a file, or when the user stops a live
-// source while it is reconnecting; otherwise a live source that stops delivering is reopened here until it delivers again.
+// source while it is reconnecting; otherwise a live source that stops delivering, or delivers again only after a gap of
+// kGapSeconds (a sleep), is reopened here until it delivers again.
 bool readFramePair(const string& source){
+	bool reopenNow = false;   // frames came back after a gap: reopen at once, without the first wait
 	for (;;){
-		if (readFrame(*capture, frame1) && readFrame(*capture, frame2)){
+		if (!reopenNow && readFrame(*capture, frame1) && readFrame(*capture, frame2)){
+			double gap = liveSource ? measuredGap() : 0;
+			if (gap >= kGapSeconds && reconnectAttempts == 0){
+				// The pair just read may hold frames from both sides of the gap: it is not analyzed.
+				lastGapSeconds = gap;
+				startOutage(runEnded >= 0 ? runEnded : clockNow() - gap, "No frames from " + sourceLabel(source) + " for "
+					+ gapText(gap) + " (was the computer asleep, or the run paused?), back at " + formatTime(clockNow(), false));
+				reopenNow = true;
+				continue;
+			}
 			if (reconnectAttempts > 0){
 				string line = "Reconnected to " + sourceLabel(source) + " at " + formatTime(clockNow(), false) + " after a "
-					+ to_string(int(clockNow() - outageStarted)) + " s gap (" + to_string(reconnectAttempts) + " attempts).  Tracking restarted.";
+					+ gapText(clockNow() - outages.back().from) + " gap (" + to_string(reconnectAttempts) + " attempt"
+					+ (reconnectAttempts == 1 ? "" : "s") + ").  Tracking restarted.";
 				cout << "<" << frameNumber << ">  " << line << endl;
 				if (pleaseTrace) traceFile << "<" << frameNumber << "> " << line << endl;
-				notifySource(false, 0, 0, line);
+				notifySource(false, 0, 0, line, lastGapSeconds);
 				reconnectAttempts = 0;
+				lastGapSeconds = 0;
 				// The gap is over: put its end in the manifest now, so it is on disk even if the run never ends cleanly.
 				if (!outages.empty()) outages.back().to = clockNow();
 				writeManifest(false);
@@ -1906,26 +1972,34 @@ bool readFramePair(const string& source){
 			return true;
 		}
 		if (!liveSource) return false;  // end of the file
-		if (reconnectAttempts == 0){
-			// Start of an outage.  Whatever was in the speed zone can't be finished honestly: drop it, and start
-			// tracking afresh on the first frames after the gap.
-			outageStarted = clockNow();
-			cout << "<" << frameNumber << ">  Lost " << sourceLabel(source) << " at " << formatTime(outageStarted, false)
-				<< "; vehicles being tracked, now dropped: " << vehiclesGoingRight.size() + vehiclesGoingLeft.size() << endl;
-			if (pleaseTrace) traceFile << "<" << frameNumber << "> Source lost; tracks dropped" << endl;
-			dropTracks();
-			bailing = false;
-			// For the manifest the gap starts at the last frame that arrived (runEnded, this computer's clock for a live
-			// source), which can be several seconds before the failed read noticed it.
-			outages.push_back({ runEnded >= 0 ? runEnded : outageStarted, -1 });
-			numObjects = 0;
-		}
 		capture->release();
+		if (reopenNow){
+			reopenNow = false;
+			reconnectAttempts++;
+			string line = "Reopening " + sourceLabel(source) + " after a " + gapText(lastGapSeconds) + " gap";
+			cout << "<" << frameNumber << ">  " << line << endl;
+			notifySource(true, reconnectAttempts, 0, line, lastGapSeconds);
+			if (!openSource(capture, source)) cout << "<" << frameNumber << ">  Couldn't open " << sourceLabel(source) << endl;
+			continue;
+		}
+		if (reconnectAttempts == 0){
+			// For the manifest the gap starts at the last frame that arrived (runEnded, this computer's clock for a live
+			// source), which can be several seconds before the failed read noticed it.  A read that fails after a sleep
+			// (a camera that didn't survive it) says how long the silence was, as a gap does.  It was a sleep when the
+			// wall clock ran on while steady_clock didn't (Linux, macOS), or when the silence was longer than any read
+			// waits on its own (streamReadTimeoutMs is 10 s), so a stream that simply hangs up isn't called a sleep.
+			if (lastPairWall >= 0){
+				double silent = clockNow() - lastPairWall;
+				double counted = chrono::duration<double>(chrono::steady_clock::now() - lastPairSteady).count();
+				if (silent >= 20 || silent - counted >= kGapSeconds) lastGapSeconds = silent;
+			}
+			startOutage(runEnded, "Lost " + sourceLabel(source) + " at " + formatTime(clockNow(), false));
+		}
 		int wait = reconnectWaits[min(reconnectAttempts, int(size(reconnectWaits)) - 1)];
 		reconnectAttempts++;
 		string line = "Reconnecting to " + sourceLabel(source) + ": attempt " + to_string(reconnectAttempts) + " in " + to_string(wait) + " s";
 		cout << "<" << frameNumber << ">  " << line << endl;
-		notifySource(true, reconnectAttempts, wait, line);
+		notifySource(true, reconnectAttempts, wait, line, lastGapSeconds);
 		if (waitOrStop(wait * 1000)){
 			cout << "Stopped while reconnecting." << endl;
 			stoppedWhileReconnecting = true;
@@ -2013,6 +2087,8 @@ int vstMain(int argc, char** argv){
 		liveSource = isLiveCamera(FName) || (isStreamUrl(FName) && !(capture->get(CAP_PROP_FRAME_COUNT) > 0));
 		reconnectAttempts = 0;
 		stoppedWhileReconnecting = false;
+		lastPairWall = -1;
+		lastGapSeconds = 0;
 		setTimeBase(FName, fpsReported);
 
 		capture->set(CAP_PROP_POS_FRAMES, startFrame);  // Set frame number to start at, in first file to be processed;  Remaining files will start at zero.
@@ -2200,6 +2276,8 @@ void resetEngineState(){
 	reconnectAttempts = 0;
 	outageStarted = 0;
 	stoppedWhileReconnecting = false;
+	lastPairWall = -1;
+	lastGapSeconds = 0;
 	manifestPath.clear();
 	manifestStats.clear();
 	manifestInput.clear();

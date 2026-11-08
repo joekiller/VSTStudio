@@ -142,6 +142,7 @@ add_executable(VSTStudio WIN32
   main.cpp
   App.cpp
   AppHealth.cpp
+  KeepAwake.cpp
   Canvas.cpp
   Media.cpp
   Guide.cpp
@@ -176,7 +177,13 @@ if(MSVC)
   target_compile_options(VSTStudio PRIVATE /utf-8)
   target_link_options(VSTStudio PRIVATE /ENTRY:mainCRTStartup)
 endif()
+# Holding off idle sleep during a live run (KeepAwake.cpp): Windows asks whether it is a Modern Standby PC through
+# PowrProf, macOS takes an IOKit power assertion; Linux runs systemd-inhibit and needs nothing linked.
+if(WIN32)
+  target_link_libraries(VSTStudio PRIVATE PowrProf)
+endif()
 if(APPLE)
+  target_link_libraries(VSTStudio PRIVATE "-framework IOKit" "-framework CoreFoundation")
   target_compile_definitions(VSTStudio PRIVATE GL_SILENCE_DEPRECATION)
   target_compile_definitions(imgui_lib PRIVATE GL_SILENCE_DEPRECATION)
 endif()

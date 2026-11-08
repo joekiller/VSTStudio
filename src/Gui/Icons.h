@@ -61,6 +61,7 @@
 #define ICON_FOLDER         "\xef\x81\xbb"
 #define ICON_IMAGE          "\xef\x80\xbe"
 #define ICON_INFO           "\xef\x81\x9a"
+#define ICON_MOON           "\xef\x86\x86"
 #define ICON_KEYBOARD       "\xef\x84\x9c"
 #define ICON_WAVE           "\xef\xa0\xbe"
 #define ICON_TERMINAL       "\xef\x84\xa0"

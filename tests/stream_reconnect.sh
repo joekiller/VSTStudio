@@ -8,6 +8,7 @@
 #      then comes back with a slice that has another vehicle in it.  VST must log the outage and the reconnect, keep running
 #      (a file would have ended), log vehicles on both sides of the gap with this computer's clock in Timestamp, and never
 #      log a vehicle whose track spans the gap.
+#   1b. Command line: VST is frozen for 10 s (SIGSTOP, as a computer's sleep does), and must treat the gap as a dropout.
 #   2. Embedded (when the test program is built with VST Studio): Stop pressed during a backoff wait ends the run at once.
 set -u
 VST=$1; SRC=$2; OUT=$3; FFMPEG=$4; ENGINE_TEST=${5:-}
@@ -83,6 +84,31 @@ grep -q '"complete": false' "$MANIFEST" || fail "manifest isn't marked incomplet
 grep -qF "\"source\": { \"input\": \"$URL\", \"kind\": \"stream\" }" "$MANIFEST" || fail "manifest doesn't name the stream: $(cat "$MANIFEST")"
 grep -qE "\{ \"from\": $stamp, \"to\": $stamp \}" "$MANIFEST" || fail "manifest has no complete outage: $(cat "$MANIFEST")"
 echo "command line: the run manifest records the outage"
+
+# ---- 1b. command line: the computer sleeps ----
+# SIGSTOP freezes VST the way a sleeping computer does: no reads fail, the wall clock moves on, and the first reads after
+# SIGCONT hand back frames buffered before it.  VST must notice the gap, drop what it was tracking, reopen the stream at
+# once (no first wait), carry on when it is served again, and record the gap as an outage.  It is frozen with a car in
+# the zone, so that car must be among the tracks dropped, and never logged.
+LOG=$OUT/sleep.log
+CSV=$OUT/sleep.csv
+serve 0 40
+"$VST" --headless --input "$URL" --config "$SRC/bin/VST.cfg" --stats "$CSV" > "$LOG" 2>&1 &
+VPID=$!; pids+=("$VPID")
+wait_for "Speed is" 1 30   # the first car has just crossed the second speed line and is still being followed out
+kill -STOP "$VPID"; sleep 10; kill -CONT "$VPID"
+wait_for "> +No frames from .* for 1[0-9] s \\(was the computer asleep.*now dropped: [1-9]" 1 10
+wait_for "> +Reopening .* after a 1[0-9] s gap" 1 5
+grep -qE "attempt 1 in" "$LOG" && fail "the first reopen after a sleep waited instead of going at once"
+wait "$FF" 2>/dev/null
+serve 10 8
+wait_for "> +Reconnected to " 1 30
+kill "$VPID"; wait "$VPID" 2>/dev/null
+gap=$(grep -m1 -oE "^<[0-9]+> +No frames from " "$LOG" | grep -oE "[0-9]+")
+awk -F', *' -v gap="$gap" 'NR > 1 && $5 <= gap && $6 > gap { print "vehicle spans the sleep at frame " gap ": " $0; bad = 1 } END { exit bad }' \
+	"$CSV" > "$OUT/sleep-check.txt" || fail "$(cat "$OUT/sleep-check.txt")"
+grep -qE "\{ \"from\": $stamp, \"to\": $stamp \}" "$OUT/run_sleep.json" || fail "sleep not recorded as an outage: $(cat "$OUT/run_sleep.json")"
+echo "command line: a 10 s sleep at frame $gap was caught, the stream reopened at once, and the gap is in the manifest"
 
 # ---- 2. embedded: Stop during the backoff wait ----
 if [ -n "$ENGINE_TEST" ]; then
