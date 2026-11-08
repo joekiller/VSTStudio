@@ -101,6 +101,19 @@ target_link_libraries(frame_input_test PRIVATE vst_webcam ${OpenCV_LIBS})
 add_executable(perspective_test tests/perspective_test.cpp ${VST_DIR}/Globals.cpp)
 target_include_directories(perspective_test PRIVATE ${VST_DIR})
 
+# A walker on the near sidewalk merged with a car coming the other way is never timed as a vehicle (VehicleDynamics
+# leapsAhead() / hiddenFrontBumper()): the tracker driven as manageMovers() drives it, over a sweep of walkers and cars.
+add_executable(pedestrian_merge_test tests/pedestrian_merge_test.cpp ${VST_DIR}/VehicleDynamics.cpp ${VST_DIR}/Projection.cpp
+  ${VST_DIR}/Snapshot.cpp ${VST_DIR}/Globals.cpp)
+target_include_directories(pedestrian_merge_test PRIVATE ${VST_DIR})
+target_link_libraries(pedestrian_merge_test PRIVATE ${OpenCV_LIBS})
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(pedestrian_merge_test PRIVATE -ffp-contract=off)  # as VideoSpeedTracker: same bumper fits on every CPU
+endif()
+# Draws the synthetic 20 ft walker-and-car clips tests/pedestrian.cmake runs VST on (MJPG .avi, OpenCV only).
+add_executable(walker_clip tests/walker_clip.cpp)
+target_link_libraries(walker_clip PRIVATE ${OpenCV_LIBS})
+
 # Interactive editor that trims a VST highlights video down to the vehicles worth posting.
 # It reads the highlights video through the same frame input port as the tracker (FrameInput.h).
 add_executable(ProcessHiLites ${CMAKE_SOURCE_DIR}/src/Wintel64/ProcessHiLites/ProcessHilites.cpp
@@ -142,6 +155,15 @@ foreach(side left left100 right)
       -P ${CMAKE_SOURCE_DIR}/tests/flush_zone.cmake)
 endforeach()
 add_test(NAME software_level COMMAND level_test)
+add_test(NAME pedestrian_merge COMMAND pedestrian_merge_test)
+# Walkers on the near sidewalk of a 20 ft view, through the real engine: no wrong-way speed from a walker, and the cars
+# around them still timed, wrong-way ones called out (tests/pedestrian.cmake).
+add_test(NAME pedestrian_short_view
+  COMMAND ${CMAKE_COMMAND}
+    -DVST=$<TARGET_FILE:VideoSpeedTracker>
+    -DCLIP=$<TARGET_FILE:walker_clip>
+    -DOUT=${CMAKE_BINARY_DIR}/test-pedestrian
+    -P ${CMAKE_SOURCE_DIR}/tests/pedestrian.cmake)
 add_executable(webcam_test tests/webcam_test.cpp ${VST_DIR}/FrameInput.cpp ${VST_DIR}/PiCamera.cpp)
 target_include_directories(webcam_test PRIVATE ${VST_DIR})
 target_link_libraries(webcam_test PRIVATE vst_webcam ${OpenCV_LIBS})
