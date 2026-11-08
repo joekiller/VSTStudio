@@ -79,7 +79,11 @@ A camera (`--input 0`), Pi camera (`--input picam`) or stream (`--input rtsp://.
 Stop in VST Studio, or ending the process). If the picture drops out, VST doesn't end the job: it reopens the source
 after 1, 2, 4, 8 and 16 s, then every 30 s for as long as it takes, and logs each attempt. Vehicles being tracked when
 the picture stopped are dropped, so no speed is ever measured across a gap, and each gap is recorded in the run
-manifest's `outages` ([Output files](output-files.md#the-run-manifest)). A URL that reports a length (an `http://`
+manifest's `outages` ([Output files](output-files.md#the-run-manifest)). A gap without a failed read counts too: if
+no frames arrive for 8 s or more (the computer slept, or the run was paused) and then they do, the first frames after it
+may be stale ones buffered before it, so VST drops what it was tracking, records the gap as an outage and reopens the
+source at once. The command line doesn't keep the computer awake (VST Studio does); for an unattended run turn sleep
+off, or run it under `systemd-inhibit` on Linux or `caffeinate -i` on macOS. A URL that reports a length (an `http://`
 link to a recorded file) is treated as a file and ends at its end.
 
 ### USB webcams and phones

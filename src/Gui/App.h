@@ -26,6 +26,7 @@
 #include "ParkingLane.h"
 #include "DashCam.h"
 #include "Health.h"
+#include "KeepAwake.h"
 #include "Legacy2016.h"
 #include "Media.h"
 #include <imgui.h>
@@ -510,6 +511,7 @@ private:
 	void calibrationCheckCard(float width);
 	void healthTick();
 	void healthCard();
+	void sleepTick(const Tracker::Progress& prog, bool liveRun);
 	void flushHealthDay();
 	std::string zonesSignature();
 
@@ -608,6 +610,11 @@ private:
 	double nextPrune_ = 0, nextViewCheck_ = 0;
 	bool wasOutage_ = false;
 	int healthVehicles_ = 0;            // tracker.counts().vehicles at the last tick
+	// Sleep (AppHealth.cpp): held off while a live run is going, and each gap the engine came back from.
+	KeepAwake keepAwake_;
+	KeepAwake::State toldAwake_ = KeepAwake::Off;   // the state last mentioned in a toast, so each is said once per session
+	int gapSerial_ = 0;                 // Tracker::Progress::gapSerial last handled
+	std::string lastWake_;              // "07:42, after 38 min asleep" for the health card; "" when it hasn't happened
 	struct PruneJob { health::Pruned pruned; std::uintmax_t freeBytes = 0; };
 	std::future<PruneJob> pruning_;
 	double autosaveAt_ = 0;             // when the pending autosave fires (0 = nothing pending)

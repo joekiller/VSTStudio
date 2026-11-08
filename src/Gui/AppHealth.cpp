@@ -9,6 +9,8 @@
 //     reference is taken from the first checked frame whenever there is none for the current zones, so redrawing
 //     the zones (the usual fix after a bump) also resets it.  Three "moved" results in a row raise the warning;
 //     "unclear" (night, fog) neither raises nor clears it.
+// It also keeps the computer awake while a live run is going (KeepAwake.h), and books each sleep the engine came back
+// from (Tracker::Progress::gapSerial) as outage time, with a note to the user.
 #include "App.h"
 #include "Icons.h"
 #include "Theme.h"
@@ -94,6 +96,35 @@ void App::flushHealthDay() {
 	health.today.date = date;
 }
 
+// Idle sleep is held off for as long as a live run goes, paused or not, and each thing worth knowing is said once per
+// session: that the computer is kept awake, or that it can't be and how to stop it sleeping, and each time it slept anyway
+// (a lid closed, the Sleep menu, or a system that ignored the request).  The engine has already reopened the camera then,
+// and no pass spans the gap, so the note is reassurance, not an error.
+void App::sleepTick(const Tracker::Progress& prog, bool liveRun) {
+	keepAwake_.want(liveRun);
+	KeepAwake::State st = keepAwake_.state();
+	if (st != toldAwake_ && (st == KeepAwake::Held || st == KeepAwake::Failed)) {
+		if (st == KeepAwake::Held)
+			toast("Keeping this computer awake while it watches the street" + std::string(keepAwake_.why().empty() ? "" : "; the "
+				+ keepAwake_.why()), c::ok, ICON_MOON);
+		else
+			toast("This computer may still go to sleep on its own (" + keepAwake_.why() + "). Set it to never sleep in "
+				+ KeepAwake::settingsHint() + ".", c::warn, ICON_WARN);
+		toldAwake_ = st;
+	}
+	if (prog.gapSerial != gapSerial_) {
+		gapSerial_ = prog.gapSerial;   // 0 again when a new run starts
+		if (prog.gapSerial > 0 && !prog.gapPaused && liveRun) {
+			double mins = prog.gapSeconds / 60;
+			std::string len = mins < 1.5 ? std::to_string(int(prog.gapSeconds + .5)) + " s"
+				: mins < 90 ? std::to_string(int(mins + .5)) + " min" : [&] { char b[16]; snprintf(b, sizeof b, "%.1f h", mins / 60); return std::string(b); }();
+			lastWake_ = localStamp("%H:%M") + ", after " + len + " asleep";
+			health.today.outageHours += prog.gapSeconds / 3600;
+			toast("The computer was asleep for " + len + ". Nothing was timed then, and tracking has picked back up.", c::warn, ICON_MOON);
+		}
+	}
+}
+
 void App::healthTick() {
 	if (screenshotMode) return;
 	double t = now();
@@ -115,6 +146,7 @@ void App::healthTick() {
 	if (liveRun) (outage ? health.today.outageHours : health.today.trackedHours) += dt / 3600;
 	if (outage && !wasOutage_) health.today.outages++;
 	wasOutage_ = outage;
+	sleepTick(prog, liveRun);
 	int n = tracker.counts().vehicles;
 	if (liveRun && n > healthVehicles_) health.today.vehicles += n - healthVehicles_;
 	healthVehicles_ = n;   // also follows clearVehicles() back down
@@ -190,6 +222,15 @@ void App::healthCard() {
 		dimText(ICON_CLOCK "  Today: %.1f h live, %d outage%s%s", d.trackedHours, d.outages, d.outages == 1 ? "" : "s",
 			mins ? (" (" + std::to_string(mins) + " min)").c_str() : "");
 	}
+	// Sleep.
+	if (keepAwake_.state() == KeepAwake::Failed) {
+		ImGui::PushStyleColor(ImGuiCol_Text, v4(c::warn));
+		ImGui::TextWrapped(ICON_MOON "  This computer may sleep on its own and miss traffic. Set it to never sleep in %s.", KeepAwake::settingsHint());
+		ImGui::PopStyleColor();
+	}
+	else if (keepAwake_.state() == KeepAwake::Held) dimText(ICON_MOON "  Sleep: held off while tracking live");
+	else dimText(ICON_MOON "  Sleep: held off whenever a live camera is tracking");
+	if (!lastWake_.empty()) dimText(ICON_MOON "  Last woke from sleep at %s; nothing was timed while it slept", lastWake_.c_str());
 	// Disk.
 	// The budget from the setting itself: health.budgetBytes is only filled in at the first prune.
 	if (prefs.keepVideoGB > 0) dimText(ICON_FOLDER "  Clips and highlights: %s of %s", gb(health.video.bytes).c_str(), gb(std::uintmax_t(prefs.keepVideoGB) << 30).c_str());

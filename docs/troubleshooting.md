@@ -27,6 +27,8 @@ in for you.
 | A webcam delivers fewer frames than it claims, or looks dark | Many webcams slow down in dim light on automatic exposure. VST fixes the shutter where it can; on macOS lock exposure in the camera's own app. *Check what this camera can do* shows what it really sends. |
 | "No Raspberry Pi camera found" | The ribbon cable isn't seated, is the wrong way round, or a Pi 5 has the older 15-pin cable. Reseat it with the power off; `rpicam-hello --list-cameras` should list the camera. |
 | "Pi camera 0 is in use by another program" | Only one program can use a Pi camera. Close `rpicam-hello`, another VST, or a browser using it. |
+| Odd speeds or a burst of passes after the computer slept (older versions) | The tracker counted frames across the sleep. VST Studio now keeps the computer awake while tracking live and reopens the camera after any gap. Leave those passes out in Results. |
+| "This computer may still go to sleep on its own" | VST Studio couldn't hold off sleep (on Linux, a desktop without systemd). Turn automatic sleep off in the system's power settings while it watches the street. |
 | A camera or stream keeps saying **Reconnecting** | The source stopped sending pictures. VST keeps retrying every 30 s; check the camera's power, network and URL. Measuring resumes when it is back. |
 | Date, Time and Timestamp are blank | The recording's time can't be trusted. Rename it `manual_<yyyymmddhhmmss when it started>.<ext>` and run it again. |
 | macOS says the app can't be opened | Only builds from a release are signed. For another build, run `xattr -dr com.apple.quarantine VSTStudio.app`. |

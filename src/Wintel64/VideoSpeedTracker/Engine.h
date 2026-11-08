@@ -67,12 +67,15 @@ struct AttemptEvent {
 };
 
 // A live source (camera or stream) stopped delivering frames and is being reopened, or has come back.  Files never
-// report this: they end at their first failed read.
+// report this: they end at their first failed read.  Frames that come back only after a long gap (the computer slept, or
+// the host blocked in pollKey to pause) count too: the source is reopened at once (attempt 1, waitSeconds 0) and
+// gapSeconds says how long nothing arrived, so no speed is ever measured across the gap.
 struct SourceStatus {
 	bool reconnecting;               // true from the dropout until frames arrive again
 	int attempt;                     // reopen attempt about to be made (1, 2, ...); 0 once reconnected
-	int waitSeconds;                 // wait before that attempt: 1, 2, 4, 8, 16, then 30 for as long as it takes
+	int waitSeconds;                 // wait before that attempt: 0 straight after a gap, else 1, 2, 4, 8, 16, then 30 for as long as it takes
 	std::string message;             // the line also written to the log
+	double gapSeconds = 0;           // > 0 when this outage began with a gap of at least 8 s without frames (a sleep); same on the "reconnected" report
 };
 
 struct Hooks {

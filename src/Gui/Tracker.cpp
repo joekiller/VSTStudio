@@ -174,6 +174,7 @@ void Tracker::worker(std::vector<Job> jobs, Options opt) {
 
 int Tracker::pollKey() {
 	while (paused_ && !stop_) {
+		pausedSinceFrame_ = true;
 		std::this_thread::sleep_for(std::chrono::milliseconds(15));
 		paceFrame0_ = -1;   // restart pacing after a pause instead of racing to catch up
 	}
@@ -181,15 +182,23 @@ int Tracker::pollKey() {
 }
 
 // The engine lost a camera or stream and is reopening it (or has).  Frames from before the gap are dropped from the ring so a
-// vehicle tracked afterwards never gets a snapshot or clip from the other side of it.
+// vehicle tracked afterwards never gets a snapshot or clip from the other side of it.  The first report of an outage that
+// began with a long gap (attempt 1, gapSeconds > 0) is counted for the GUI's "the computer was asleep" note, which a
+// pause of a live run also causes and which the GUI doesn't call sleep.
 void Tracker::onSourceStatus(const vst::SourceStatus& s) {
 	if (s.reconnecting) ring_.clear();
 	std::lock_guard<std::mutex> l(mu_);
 	progress_.reconnecting = s.reconnecting;
 	progress_.sourceStatus = s.message;
+	if (s.reconnecting && s.attempt == 1 && s.gapSeconds > 0) {
+		progress_.gapSerial++;
+		progress_.gapSeconds = s.gapSeconds;
+		progress_.gapPaused = pausedSinceFrame_;
+	}
 }
 
 void Tracker::onFrame(const vst::FrameInfo& f) {
+	pausedSinceFrame_ = false;
 	box_ = f.analysisBox;
 	ring_.push_back({ f.frameNumber, f.frame(f.analysisBox).clone(), f.boxes });
 	while (ring_.size() > kRing) ring_.pop_front();

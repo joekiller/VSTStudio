@@ -68,6 +68,10 @@ Press **Start tracking** and leave it. VST Studio reconnects a camera that drops
 (20 GB by default), warns if the camera gets knocked out of line, and logs each day so you can tell a quiet street
 from a camera that was offline. Reopen VST Studio and it picks up where you left off.
 
+While it tracks a live camera, VST Studio keeps the computer from going to sleep on its own (the screen can still turn
+off). Closing a laptop's lid or choosing Sleep still sleeps it; when it wakes, VST Studio reopens the camera and says how
+long it was asleep. Nothing is timed while it sleeps, and no car is ever timed across the gap.
+
 ## 5. Pair your phone (optional)
 
 Turn on **Companion app** in VST Studio's side rail and scan the QR code with your phone, on the same Wi-Fi. From the
