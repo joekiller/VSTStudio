@@ -57,7 +57,7 @@ export async function render({ vst, view, prefs, start }) {
         ${live ? html`<button class="btn" id="demo">${icon('sparkle')}Try the demo</button>` : html`<button class="btn primary" id="real">${icon('wifi')}Connect to my VST</button>`}
         <button class="btn danger" id="forget">${live ? 'Unpair this phone' : 'Leave demo'}</button>
       </div>
-      <p class="small muted" style="margin-top:24px">VST Companion is part of <a href="https://github.com/joekiller/VSTStudio">VST Studio</a>, built on Paul Reynolds' 2016 <a href="https://github.com/pfr/VideoSpeedTracker">VideoSpeedTracker</a>, open source under the BSD license. Data stays on your network.</p>`.__html;
+      <p class="small muted" style="margin-top:24px">VST Companion is part of <a href="https://github.com/joekiller/VSTStudio">VST Studio</a>, derived from <a href="https://github.com/pfr/VideoSpeedTracker">pfr/VideoSpeedTracker</a> (2016) and independent of it, open source under the BSD license. Data stays on your network.</p>`.__html;
 
     if (refocus) view.querySelector(refocus)?.focus();
     $('#run').onclick = async (e) => {

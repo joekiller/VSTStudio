@@ -5,7 +5,7 @@
 #   site/assemble.sh /tmp/vst-site && python3 -m http.server -d /tmp/vst-site 8000   # then open localhost:8000
 #
 # Layout (the repository is served at https://joekiller.github.io/VSTStudio/):
-#   /             site/            the splash page: what VST Studio is, quick start, downloads, the story
+#   /             site/            the splash page: what VST Studio is, quick start, downloads
 #   /companion/   companion/       the phone companion; on https it can't reach a VST on the home network, so here
 #                                  it is the demo (companion/#demo opens straight into it)
 #   /ride/        companion/ride/  VST Ride-along, the GPS recorder for calibration drives (needs https for GPS)

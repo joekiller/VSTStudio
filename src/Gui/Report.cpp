@@ -1401,7 +1401,7 @@ std::string renderHtml(const Study& st) {
 	h << "<section class='sheet method'>";
 	runhead("Method");
 	h << "<h2><span class='num'>" << ++sec << "</span>Method</h2>";
-	h << "<h3>How VST measures speed</h3><p>A fixed camera looks across the street. VST Studio, built on Paul Reynolds' 2016 VideoSpeedTracker (VST), finds moving vehicles by comparing consecutive frames, follows each one's front bumper, "
+	h << "<h3>How VST measures speed</h3><p>A fixed camera looks across the street. VST Studio, derived from the 2016 VideoSpeedTracker (VST, github.com/pfr/VideoSpeedTracker), finds moving vehicles by comparing consecutive frames, follows each one's front bumper, "
 	  << "and counts the frames it takes to travel between two vertical lines drawn on the picture. Speed is the calibration speed scaled by the ratio of frame counts: "
 	  << "<i>speed = calibration speed × calibration frames ÷ frames counted</i>, corrected for the video's frame rate. It measures time over a fixed distance; it does not use radio or laser.</p>";
 	h << "<h3>Calibration</h3><p>The distance between the lines is never measured directly. Instead a car drives through at a known speed (on cruise control) and VST records how many frames it took, "
@@ -1443,7 +1443,7 @@ std::string renderHtml(const Study& st) {
 		if (listed > 25) h << "<tr><td colspan='4' class='muted'>and " << listed - 25 << " more files</td></tr>";
 	}
 	h << "</table>";
-	h << "<p class='small'>Made with VST Studio " << esc(s.version) << ", based on VideoSpeedTracker by Paul Reynolds (2016). BSD 3-Clause, github.com/joekiller/VSTStudio. Generated " << esc(genText) << ".</p>";
+	h << "<p class='small'>Made with VST Studio " << esc(s.version) << ", derived from VideoSpeedTracker (github.com/pfr/VideoSpeedTracker, 2016). BSD 3-Clause, github.com/joekiller/VSTStudio. Generated " << esc(genText) << ".</p>";
 	foot();
 	h << "</section>\n</body></html>\n";
 	return h.o.str();

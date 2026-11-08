@@ -1,8 +1,5 @@
 # VST Studio documentation
 
-VST Studio is built on Paul Reynolds' 2016 [VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker); its story is in
-[history](history/README.md).
-
 New here? Start with [Getting started](getting-started.md).
 
 | If you want to... | Read |
@@ -18,4 +15,4 @@ New here? Start with [Getting started](getting-started.md).
 | Analyze the csv and other files yourself | [Output files](output-files.md), [published datasets](dataset-schema.md), [speed trend](speed-trend.md) |
 | Write another app that talks to VST Studio | [Companion API](companion-api.md) |
 | Build, test or release VST | [Building, testing and releasing](building.md), [code signing](code-signing.md) |
-| Learn where VST came from | [History](history/README.md): the Locust Avenue story and the original 2016 materials |
+| Learn where VST came from | [History](history/README.md): Paul Reynolds' 2016 [VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker), the Locust Avenue story and the original materials |
