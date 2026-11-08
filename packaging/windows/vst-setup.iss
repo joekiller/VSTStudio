@@ -15,6 +15,8 @@
 ;   * For an all-users install, a Windows Firewall rule letting VST Studio's companion server answer phones on
 ;     private networks (home Wi-Fi) only.  A per-user install can't add one; Windows asks the first time the
 ;     companion is turned on instead.
+;   * Updates: VST Studio runs this same installer itself after the user accepts an update (src/Gui/UpdateOs.cpp), with
+;     /SILENT and the install's own mode and folder, plus /relaunch=1, which opens VST Studio again when it's done.
 ;   * Uninstalling removes the program and the firewall rule but never the user's config, calibration history,
 ;     videos or results.
 
@@ -78,6 +80,15 @@ Name: "{autodesktop}\VST Studio"; Filename: "{app}\VSTStudio.exe"; WorkingDir: "
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""VST Studio companion"""; Flags: runhidden; Check: IsAdminInstallMode
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""VST Studio companion"" dir=in action=allow program=""{app}\VSTStudio.exe"" enable=yes profile=private"; Flags: runhidden; Check: IsAdminInstallMode
 Filename: "{app}\VSTStudio.exe"; Description: "{cm:LaunchProgram,VST Studio}"; WorkingDir: "{%USERPROFILE}"; Flags: nowait postinstall skipifsilent
+; An update VST Studio started itself: open it again, as the signed-in user even when Setup was elevated for Program Files.
+Filename: "{app}\VSTStudio.exe"; WorkingDir: "{%USERPROFILE}"; Flags: nowait runasoriginaluser; Check: RelaunchAfterUpdate
 
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""VST Studio companion"""; Flags: runhidden; Check: IsAdminInstallMode; RunOnceId: "DelFirewallRule"
+
+[Code]
+// /relaunch=1 on the command line (src/Gui/UpdateOs.cpp's updates); absent for an install by hand.
+function RelaunchAfterUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:relaunch|0}') = '1';
+end;

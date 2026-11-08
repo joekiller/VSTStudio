@@ -145,6 +145,9 @@ void App::init(bool fresh, const std::string& configPath) {
 
 void App::shutdown() {
 	tracker.stop();
+	// A check stuck on a slow network could hold the exit for its 30 s timeout: stop a download, and let a check still in
+	// flight end with the process instead of waiting for it (the Updater is left undestroyed on purpose).
+	if (updater_ && updater_->busy()) { updater_->cancel(); (void)updater_.release(); }
 	if (persist) flushHealthDay();   // today so far; a restart later today adds a second row for the date
 	server.reset();
 	if (persist) prefs.save();
@@ -1444,6 +1447,7 @@ void App::frame(float w, float h) {
 	pumpTracker();
 	healthTick();
 	legacyPump();
+	updateTick();
 	if (!tracker.running()) {
 		// Never waits: a live source's frames come from its reader thread.  A connection that fails, or a picture that
 		// is lost, ends here: say why and drop the source, so nothing stale stays on screen.
@@ -1515,6 +1519,7 @@ void App::frame(float w, float h) {
 	ImGui::PopStyleVar();
 	ImGui::EndGroup();
 	legacyWelcomeModal();
+	updateDialog();
 	drawToasts(w, h);
 	ImGui::End();
 }
@@ -1680,8 +1685,8 @@ void App::drawRail(float h) {
 	group("SHARE");
 	item(Page::Companion);
 
-	// Status block pinned to the bottom.
-	float bh = px(86);
+	// Status block pinned to the bottom: tracking, the config, the companion, and the version (which opens Updates).
+	float bh = px(108);
 	ImGui::SetCursorPosY(h - bh - px(14));
 	ImVec2 p = ImGui::GetCursorScreenPos();
 	float bw = ImGui::GetContentRegionAvail().x;
@@ -1703,6 +1708,7 @@ void App::drawRail(float h) {
 	dl->AddText(fonts.caption, fsz(fonts.caption), p + ImVec2(px(12), px(38)), broken ? c::bad : c::dim, l1.c_str());
 	std::string l2 = std::string(ICON_BROADCAST "  companion ") + (remoteOn() ? "on" : localServer_ ? "off (map open)" : "off");
 	dl->AddText(fonts.caption, fsz(fonts.caption), p + ImVec2(px(12), px(60)), remoteOn() ? c::accent2 : c::faint, l2.c_str());
+	updateRailLine(dl, p + ImVec2(px(12), px(82)), bw - px(16));
 	ImGui::EndChild();
 }
 

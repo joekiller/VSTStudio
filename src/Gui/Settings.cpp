@@ -292,6 +292,7 @@ void AppPrefs::load() {
 	i("remotePort", remotePort); i("keepVideoGB", keepVideoGB); i("planPreset", planPreset);
 	b("realtime", realtime); b("highlights", highlights); b("trace", trace); b("showMotion", showMotion);
 	b("guideDone", guideDone); b("remote", remoteEnabled);
+	b("updateAuto", updateAuto); str("updateSkip", updateSkip); d("updateChecked", updateChecked);
 	// Before the key existed, someone past the guide had been through step 2.
 	if (kv.count("planConfirmed")) b("planConfirmed", planConfirmed); else planConfirmed = guideDone;
 	d("planHfov", planHfov); d("planWidth", planWidth); d("planFps", planFps); d("planShutter", planShutter);
@@ -329,7 +330,9 @@ std::string AppPrefs::render() const {
 		<< "\nplanCamLat = " << planCamLat << "\nplanCamLon = " << planCamLon << std::setprecision(6)
 		<< "\nplanStreet = " << planStreet << "\nplanAutosave = " << planAutosave << "\nplanDraft = " << planDraft
 		<< "\ncalibratedFor = " << calibratedFor << "\ncalibratedLines = " << calibratedLines << "\nplanConfirmed = " << planConfirmed << "\nlastPage = " << lastPage << "\nplanDistMeasured = " << planDistMeasured
-		<< "\nlegacySeen = " << legacySeen << "\nlegacyImported = " << legacyImported << "\nlegacyData = " << legacyData << "\n";
+		<< "\nlegacySeen = " << legacySeen << "\nlegacyImported = " << legacyImported << "\nlegacyData = " << legacyData
+		// Whole seconds: the stream's six significant digits would round a 2026 timestamp by days.
+		<< "\nupdateAuto = " << updateAuto << "\nupdateSkip = " << updateSkip << "\nupdateChecked = " << static_cast<long long>(updateChecked) << "\n";
 	for (auto& r : recent) out << "recent = " << r << "\n";
 	return out.str();
 }

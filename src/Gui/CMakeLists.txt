@@ -138,6 +138,28 @@ endif()
 
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
+
+# Updating from GitHub Releases (Update.h, Updater.h, UpdateOs.h): the decisions, the worker thread and the platform's
+# downloads and signature checks, with no ImGui, so tests/update_test.cpp links it on its own.  Windows uses WinHTTP and
+# WinVerifyTrust; macOS NSURLSession and Security.framework (UpdateMac.mm, with ARC); Linux only checks, through curl.
+if(APPLE)
+  add_library(vst_update STATIC Update.cpp Updater.cpp UpdateMac.mm)
+  set_source_files_properties(UpdateMac.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+  target_link_libraries(vst_update PUBLIC "-framework Foundation" "-framework Security")
+else()
+  add_library(vst_update STATIC Update.cpp Updater.cpp UpdateOs.cpp)
+endif()
+target_include_directories(vst_update PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${SINGLE_DIR})
+target_compile_definitions(vst_update PRIVATE VST_VERSION="${VST_VERSION}")
+target_link_libraries(vst_update PUBLIC vst_report Threads::Threads)
+if(WIN32)
+  target_compile_definitions(vst_update PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+  target_link_libraries(vst_update PUBLIC winhttp wintrust crypt32 shell32 advapi32)
+endif()
+if(MSVC)
+  target_compile_options(vst_update PRIVATE /utf-8)
+endif()
+
 add_executable(VSTStudio WIN32
   main.cpp
   App.cpp
@@ -155,6 +177,7 @@ add_executable(VSTStudio WIN32
   Theme.cpp
   Tracker.cpp
   Sample.cpp
+  AppUpdate.cpp
   ${SINGLE_DIR}/qrcodegen.cpp
   ${EMBEDDED})
 target_include_directories(VSTStudio PRIVATE ${pfd_SOURCE_DIR} ${SINGLE_DIR})
@@ -167,7 +190,7 @@ endif()
 # Long-lived MJPEG and server-sent-event connections each hold a worker, so allow more than the default 8.
 target_compile_definitions(VSTStudio PRIVATE CPPHTTPLIB_THREAD_POOL_COUNT=16)
 target_compile_definitions(VSTStudio PRIVATE VST_VERSION="${VST_VERSION}")
-target_link_libraries(VSTStudio PRIVATE vst_engine vst_report imgui_lib OpenGL::GL Threads::Threads)
+target_link_libraries(VSTStudio PRIVATE vst_engine vst_report vst_update imgui_lib OpenGL::GL Threads::Threads)
 if(WIN32)
   # Keep windows.h from defining min/max macros and from dragging in winsock 1 ahead of cpp-httplib's winsock2.
   target_compile_definitions(VSTStudio PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN _HAS_STD_BYTE=0)

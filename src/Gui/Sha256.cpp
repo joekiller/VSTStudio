@@ -71,8 +71,10 @@ std::string hex(const std::string& bytes) {
 	return s.finish();
 }
 
-std::string hexOfFile(const std::string& path) {
-	std::ifstream in(std::filesystem::path(path), std::ios::binary);
+std::string hexOfFile(const std::string& path) { return hexOfPath(std::filesystem::path(path)); }
+
+std::string hexOfPath(const std::filesystem::path& path) {
+	std::ifstream in(path, std::ios::binary);
 	if (!in) return "";
 	State s;
 	std::vector<char> chunk(1 << 16);

@@ -35,6 +35,7 @@
 #include "Results.h"
 #include "Settings.h"
 #include "Tracker.h"
+#include "Updater.h"
 #include <deque>
 #include <functional>
 #include <future>
@@ -420,6 +421,9 @@ public:
 	std::unique_ptr<Server> server;
 	bool screenshotMode = false;        // documentation captures (main.cpp --shots)
 	bool persist = true;                // save preferences on exit
+	// Set when an accepted update has started its installer (AppUpdate.cpp): main.cpp's loop ends and Studio quits
+	// normally (preferences saved) so the installer can replace it; it opens again by itself afterwards.
+	bool quitRequested = false;
 
 private:
 	friend struct DemoScript;
@@ -512,6 +516,15 @@ private:
 	void healthTick();
 	void healthCard();
 	void sleepTick(const Tracker::Progress& prog, bool liveRun);
+	// Updates (AppUpdate.cpp): the daily check, the prompt when a new version is out, and the rail's version line.
+	void updateTick();
+	void updateDialog();
+	void updateRailLine(ImDrawList* dl, ImVec2 at, float width);
+	std::unique_ptr<Updater> updater_;
+	bool openUpdate_ = false;           // open the Updates dialog next frame (rail click, or a new version to offer)
+	std::string offeredUpdate_;         // the version the dialog last opened by itself for, so it asks once a session
+	bool installWhenReady_ = false;     // "Update now" was pressed: install as soon as the download is verified
+	bool updateLaunched_ = false;       // Windows, install for everyone: Setup is waiting on the UAC prompt and closes Studio
 	void flushHealthDay();
 	std::string zonesSignature();
 
