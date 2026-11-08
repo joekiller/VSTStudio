@@ -280,6 +280,12 @@ if(TARGET vst_report)
   target_link_libraries(dataset_test PRIVATE vst_report)
   add_test(NAME published_datasets COMMAND dataset_test ${CMAKE_BINARY_DIR}/dataset-test)
 
+  # Passes reviewed by hand (src/Gui/Exclusions.cpp): leaving a false detection out and putting it back, deleting its
+  # csv row byte for byte, the street report leaving it out, and archives carrying the marks there and back.
+  add_executable(exclusions_test tests/exclusions_test.cpp)
+  target_link_libraries(exclusions_test PRIVATE vst_report)
+  add_test(NAME reviewed_passes COMMAND exclusions_test ${CMAKE_BINARY_DIR}/exclusions-test)
+
   # Calibrating from a Tesla dashcam clip (src/Gui/DashCam.cpp): reads per-frame speed from synthetic TeslaCam MP4s
   # and picks a pass's speed out of them.
   add_executable(dashcam_test tests/dashcam_test.cpp)

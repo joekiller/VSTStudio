@@ -86,7 +86,7 @@ static json toJson(const Info& in) {
 			{ "flagged", v.flagged }, { "fps", v.fps }, { "source", v.source }, { "snapshot", v.snapshot }, { "clip", v.clip },
 			{ "lengthFt", std::round(v.lengthFt * 10) / 10 }, { "trend", v.trend }, { "entryMph", v.entryMph }, { "exitMph", v.exitMph },
 			{ "accel", v.accel }, { "mphIn20ft", v.mphIn20ft }, { "ownDrive", v.ownDrive }, { "drivenMph", v.drivenMph },
-			{ "run", v.run } });
+			{ "run", v.run }, { "leftOut", v.leftOut } });
 	const Calibration& c = in.cal;
 	return {
 		{ "format", "vst-archive" }, { "version", 1 },
@@ -157,6 +157,7 @@ static void fromJson(const json& j, Info& out) {
 			v.ownDrive = int(num(o, "ownDrive", 0));
 			v.drivenMph = num(o, "drivenMph", 0);
 			v.run = str(o, "run", "");
+			v.leftOut = str(o, "leftOut", "");
 			out.vehicles.push_back(v);
 		}
 	out.firstPassed.clear();
@@ -175,13 +176,14 @@ static void loadCalibration(const fs::path& dir, Info& out) {
 	out.hasPasses = fs::is_regular_file(dir / "calibration-passes.csv", ec);
 	out.passes = out.hasPasses ? calib::readPasses((dir / "calibration-passes.csv").string()) : std::vector<CalPass>();
 	out.inputs = calib::loadInputs((dir / "calibration-inputs.json").string(), out.configPath);
+	out.exclusions = exclusions::load((dir / "Stats" / "exclusions.json").string());
 }
 
 static std::string vehiclesCsv(const Info& in) {
 	std::ostringstream o;
 	// New columns go at the end, so a spreadsheet made from an older vehicles.csv keeps its column letters.
 	o << "#,Passed,Speed (mph),Direction,Compass,Wrong way,Frames,Size,Truck or bus,Flagged,Source,Snapshot,Clip,"
-		"Length (ft),In (mph),Out (mph),Accel (mph/s),Trend,In 20 ft (mph),Own drive\n";
+		"Length (ft),In (mph),Out (mph),Accel (mph/s),Trend,In 20 ft (mph),Own drive,Left out\n";
 	for (size_t i = 0; i < in.vehicles.size(); i++) {
 		const Vehicle& v = in.vehicles[i];
 		o << i + 1 << ',' << cell(v.passed) << ',' << v.speed << ',' << (v.l2r ? "L2R" : "R2L") << ',' << cell(v.compass) << ','
@@ -191,7 +193,8 @@ static std::string vehiclesCsv(const Info& in) {
 		o << ',';
 		if (!v.trend.empty()) o << v.entryMph << ',' << v.exitMph << ',' << v.accel << ',' << v.trend << ',' << v.mphIn20ft;
 		else o << ",,,,";
-		o << ',' << (v.ownDrive == 1 ? "calibration" : v.ownDrive == 2 ? "check" : "") << '\n';
+		o << ',' << (v.ownDrive == 1 ? "calibration" : v.ownDrive == 2 ? "check" : "") << ','
+			<< (v.leftOut.empty() ? "" : exclusions::reasonLabel(exclusions::reasonFrom(v.leftOut))) << '\n';
 	}
 	return o.str();
 }
@@ -257,6 +260,15 @@ bool write(const Request& req, std::string& dir, std::string& error, std::vector
 		std::string text = std::string(calib::kPassesHeader) + "\n";
 		for (const CalPass& p : mine) text += calib::passLine(p);
 		if (!writeText(tmp / "calibration-passes.csv", text)) return fail("Couldn't write calibration-passes.csv in " + tmp.string());
+	}
+	// Passes reviewed by hand among these runs, so the archive and its report leave out what the data folder left out.
+	// Only written when there are some: an archive with no file simply has none.
+	{
+		std::set<std::string> names;
+		for (const std::string& csv : req.statsCsvs) names.insert(fs::path(csv).filename().string());
+		exclusions::Store mine = exclusions::only(req.exclusions, names);
+		if (!mine.marks.empty() && !writeText(tmp / "Stats" / "exclusions.json", exclusions::dump(mine)))
+			return fail("Couldn't write Stats/exclusions.json in " + tmp.string());
 	}
 	if (!req.calInputs.empty() && !writeText(tmp / "calibration-inputs.json", calib::inputsJson(req.info.configPath, req.calInputs)))
 		return fail("Couldn't write calibration-inputs.json in " + tmp.string());
@@ -383,6 +395,7 @@ bool restore(const std::string& dir, const std::string& dataDir, std::string& er
 	for (const std::string& rel : a.files) {
 		if (rel.rfind("Stats/", 0) != 0 && rel.rfind("HiLites/", 0) != 0) continue;
 		if (rel == "Stats/calibration-sets.json") continue;   // the data folder keeps its own; App merges the archived sets back
+		if (rel == "Stats/exclusions.json") continue;         // merged below instead, so the data folder's own marks stay
 		fs::path dst = fs::path(dataDir) / fs::path(rel);
 		fs::create_directories(dst.parent_path(), ec);
 		if (fs::exists(dst, ec)) { kept.push_back(dst.filename().string()); continue; }
@@ -399,6 +412,12 @@ bool restore(const std::string& dir, const std::string& dataDir, std::string& er
 			have.push_back(p);
 			if (passesAdded) (*passesAdded)++;
 		}
+	}
+	// The runs' reviewed passes go back too, so a false detection left out before archiving stays left out.
+	if (!a.exclusions.marks.empty()) {
+		std::string path = exclusions::pathFor(dataDir);
+		exclusions::Store have = exclusions::load(path);
+		if (exclusions::merge(have, a.exclusions) && !exclusions::save(path, have, error)) return false;
 	}
 	// The archive stays complete (snapshots, clips and its own copy of every file); it just no longer stands in for them.
 	a.moved = false;
@@ -506,19 +525,23 @@ summary{cursor:pointer;font-weight:600}td.band{border-left:5px solid transparent
 </main>
 <script id="data" type="application/json">@DATA@</script>
 <script id="dataset" type="application/json">@DATASET@</script>
-<script>
+)HTML"
+	// Two literals, not one: MSVC rejects a single string literal over 16 KB (C2026).
+	R"HTML(<script>
 const A=JSON.parse(document.getElementById('data').textContent),L=A.speedLimit,W=A.wayOver;
 const V=A.vehicles.map((v,i)=>Object.assign({n:i+1},v));
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const col=v=>v.wrongWay?'var(--wrong)':v.speed>=W?'var(--bad)':v.speed>L?'var(--warn)':'var(--ok)';
+const col=v=>v.leftOut?'#6b7280':v.wrongWay?'var(--wrong)':v.speed>=W?'var(--bad)':v.speed>L?'var(--warn)':'var(--ok)';
 const when=v=>v.passed?v.passed.replace('T',' '):(v.fps>0?Math.floor(v.frame/v.fps/60)+':'+String(Math.floor(v.frame/v.fps)%60).padStart(2,'0')+' in video':'');
 document.getElementById('title').textContent=A.name||'Archived dataset';
 document.title=(A.name||'Archive')+' · VST';
 document.getElementById('sub').textContent=[A.siteName,(document.getElementById('dataset').textContent.trim()!=='null'?'published ':'archived ')+(A.created||'').slice(0,10),A.from?'from '+(A.from=='This session'?'this session':A.from):'','limit '+L+' mph'].filter(Boolean).join(' · ');
-const T=V.filter(v=>!v.ownDrive);  // traffic: the tiles leave out the user's own calibration and check drives
+// Traffic: the tiles leave out the user's own calibration and check drives, and passes reviewed and left out by hand.
+const T=V.filter(v=>!v.ownDrive&&!v.leftOut),OWN=V.filter(v=>v.ownDrive).length,OUT=V.filter(v=>v.leftOut).length;
+const WHY={'not-vehicle':'not a vehicle','twice':'counted twice','bad-reading':'bad reading','merged':'person merged with a car'},why=v=>WHY[v.leftOut]||'left out';
 const sp=T.map(v=>v.speed).sort((a,b)=>a-b),p85=sp.length?sp[Math.ceil(.85*sp.length)-1]:0;
 const tile=(k,v,s)=>`<div class="tile"><span class="dim">${k}</span><b>${v}</b><span class="dim">${s}</span></div>`;
-document.getElementById('tiles').innerHTML=tile('Vehicles',T.length,V.length>T.length?(V.length-T.length)+(V.length-T.length==1?' own drive left out':' own drives left out'):'')+tile('Speeding',T.filter(v=>v.speed>L).length,'over '+L+' mph')
+document.getElementById('tiles').innerHTML=tile('Vehicles',T.length,[OWN?OWN+(OWN==1?' own drive':' own drives'):'',OUT?OUT+' not traffic':''].filter(Boolean).join(', ')+(OWN||OUT?' left out':''))+tile('Speeding',T.filter(v=>v.speed>L).length,'over '+L+' mph')
  +tile('Way over',T.filter(v=>v.speed>=W).length,W+' mph or more')+tile('Wrong way',T.filter(v=>v.wrongWay).length,'')+tile('85th percentile',p85+' mph','');
 // How these speeds were calibrated: the calibration sets (the band down each row's left edge, as in Studio's Results),
 // the user's own calibration and check drives (left out of the counts above), and what the calibration was measured from.
@@ -544,13 +567,14 @@ const lockWords=s=>!s.known?'':!s.locked?'open: it followed the latest calibrati
   +I.map(i=>{const out=/not counted/.test(i.role||'');return `<li${out?' class="dim"':''}>${esc(i.label||i.method)}: ${i.zoneFt} ft, \u00b1${(i.sigma*100).toFixed(1)}%${i.dirs=='both'?'':i.dirs=='L2R'?', left to right':', right to left'}${i.role?' \u00b7 '+esc(i.role):''}${i.time?' <span class="dim">'+esc(i.time.slice(0,10))+'</span>':''}</li>`}).join('')+'</ul>';}
  h+='<p class="dim">Files: <a href="calibration-history.csv">calibration-history.csv</a>'+(K.kept?', <a href="calibration-passes.csv">calibration-passes.csv</a>':'')+(I.length?', <a href="calibration-inputs.json">calibration-inputs.json</a>':'')+(S.length?', <a href="Stats/calibration-sets.json">Stats/calibration-sets.json</a>':'')+'.</p>';
  document.getElementById('cal').innerHTML=h;}
-const F=[['All',v=>true],['Speeding',v=>v.speed>L],['Way over',v=>v.speed>=W],['Wrong way',v=>v.wrongWay]];
+const F=[['All',v=>true],['Speeding',v=>!v.leftOut&&v.speed>L],['Way over',v=>!v.leftOut&&v.speed>=W],['Wrong way',v=>!v.leftOut&&v.wrongWay]];
+if(OUT)F.push(['Left out',v=>!!v.leftOut]);
 let f=0,key='speed',asc=false,sel=0;
 function draw(){
  document.getElementById('filters').innerHTML=F.map((x,i)=>`<button class="${i==f?'on':''}" onclick="f=${i};draw()">${x[0]}</button>`).join('');
  const r=V.filter(F[f][1]).sort((a,b)=>{const x=a[key],y=b[key];return (x<y?-1:x>y?1:0)*(asc?1:-1)});
  document.getElementById('rows').innerHTML=r.map(v=>`<tr class="${v.n==sel?'sel':''}" onclick="pick(${v.n})"><td class="band" style="border-left-color:${band(v)}" title="${esc(setName(v))}">${v.n}</td>`
-  +`<td><span class="pill" style="background:${col(v)}">${v.speed} mph</span></td><td>${v.direction=='R2L'?'←':'→'} ${esc(v.compass)}${v.wrongWay?' <span class="pill" style="background:var(--wrong)">wrong way</span>':''}${v.ownDrive?' <span class="pill" style="background:var(--acc)">'+(v.ownDrive==2?'check':'calibration')+'</span>':''}</td>`
+  +`<td><span class="pill" style="background:${col(v)}">${v.speed} mph</span></td><td>${v.direction=='R2L'?'←':'→'} ${esc(v.compass)}${v.wrongWay?' <span class="pill" style="background:var(--wrong)">wrong way</span>':''}${v.ownDrive?' <span class="pill" style="background:var(--acc)">'+(v.ownDrive==2?'check':'calibration')+'</span>':''}${v.leftOut?' <span class="pill" style="background:#6b7280" title="Reviewed and left out of the counts">'+why(v)+'</span>':''}</td>`
   +`<td>${esc(when(v))}</td><td class="dim src">${esc(v.source)}${v.flagged?' ⚠':''}</td></tr>`).join('');
 }
 function pick(n){sel=n;const v=V[n-1];draw();
@@ -560,6 +584,7 @@ function pick(n){sel=n;const v=V[n-1];draw();
  +`<div class="dim">${esc(when(v))} · ${v.frames} frames · ${v.lengthFt>0?Math.round(v.lengthFt)+' ft long':'size '+v.area}${v.large?' (truck or bus)':''}</div>`
  +(v.trend?`<div class="dim">${v.entryMph} → ${v.exitMph} mph in the zone (${v.accel>0?'+':''}${v.accel} mph/s, ${esc(v.trend)}), ${v.mphIn20ft} mph 20 ft on</div>`:'')
  +(v.ownDrive?`<div><b>Your own ${v.ownDrive==2?'check':'calibration'} drive</b> at ${v.drivenMph} mph: left out of the counts.</div>`:'')
+ +(v.leftOut?`<div><b>Left out: ${why(v)}.</b> Someone reviewed this detection and found it isn\u2019t traffic, so it isn\u2019t in the counts. It is kept here so you can see it.</div>`:'')
  +(v.clip?`<p><video src="${esc(v.clip)}" controls muted playsinline></video><br><a href="${esc(v.clip)}">Open the clip</a></p>`:'');
  if(innerWidth<820)document.getElementById('det').scrollIntoView({behavior:'smooth'});}
 document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;asc=key==k?!asc:k!='speed';key=k;draw()});
@@ -573,6 +598,7 @@ if(D){
  const sig=x=>x>0?pct(x):'not measured (6% assumed)';
  const C=D.checks||[],last=C[C.length-1];
  let h=`<span class="badge" style="background:${look[0]}">${look[1]} ${esc(D.statusLabel)}</span><p class="lead">${esc(D.sentence)}</p>`
+  +(D.leftOutSince&&D.summaryWithout?`<p>Without the ${D.leftOutSince.length==1?'car':D.leftOutSince.length+' cars'} found not to be traffic: <b>${D.summaryWithout.cars}</b> cars, <b>${D.summaryWithout.over}</b> over the limit, 85th percentile <b>${D.summaryWithout.p85} mph</b> (published: ${D.summary.cars}, ${D.summary.over} and ${D.summary.p85} mph). Rows ${D.leftOutSince.join(', ')} in points.csv.</p>`:'')
   +`<div class="dim">Published ${esc((D.published||'').slice(0,10))} · version ${D.version}${D.correctionOf?' · corrects '+esc(D.correctionOf):''} · speeds accurate ${esc(D.accuracy)}</div>`;
  h+=`<details><summary>How we know</summary><p>The camera times each car between two lines a known distance apart on the street. That distance was set by calibration (${esc(D.calibration.how||'one calibration, method not recorded')}). `
   +`Speeds are accurate ${esc(D.accuracy)}, with 95% confidence.${D.calibration.sigma.L2R>0&&D.calibration.sigma.R2L>0?'':' How closely that calibration was measured isn\u2019t on record, so a cautious \u00b16% (one standard deviation) is assumed; that is why the band is wide.'}</p>`;

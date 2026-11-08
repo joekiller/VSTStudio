@@ -129,7 +129,7 @@ endif()
 # (Health.cpp), the site planner's model (Plan.cpp) and combining calibration inputs (CalEvidence.cpp): no ImGui or OpenGL, so tests/report_test.cpp,
 # tests/health_test.cpp and tests/plan_test.cpp link it on their own.
 add_library(vst_report STATIC Report.cpp Results.cpp Health.cpp DashCam.cpp Plan.cpp CalEvidence.cpp Resume.cpp Archive.cpp
-  CalSets.cpp Dataset.cpp Sha256.cpp)
+  CalSets.cpp Dataset.cpp Sha256.cpp Exclusions.cpp)
 target_include_directories(vst_report PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${SINGLE_DIR})
 target_link_libraries(vst_report PUBLIC ${OpenCV_LIBS})
 if(MSVC)
@@ -147,6 +147,7 @@ add_executable(VSTStudio WIN32
   Guide.cpp
   Calibration.cpp
   Sets.cpp
+  Review.cpp
   Legacy.cpp
   Server.cpp
   Settings.cpp

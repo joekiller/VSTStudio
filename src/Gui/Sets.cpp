@@ -440,6 +440,7 @@ bool App::publishSet(int setId, const std::string& name, std::string& dir, std::
 		p.lengthFt = r.lengthFt;
 		p.flagged = r.flagged;
 		p.ownDrive = r.calKind;
+		p.leftOut = r.excluded ? exclusions::reasonName(r.leftOutWhy) : "";   // in points.csv, not in the numbers
 		p.run = fs::path(r.statsPath).filename().string();
 		p.frame = r.frame;
 		if (!r.time.empty() && (d.first.empty() || r.time < d.first)) d.first = r.time;
@@ -654,6 +655,7 @@ void App::recheckDialog() {
 					p.wrongWay = r.wrongWay;
 					p.flagged = r.flagged;
 					p.ownDrive = r.calKind;
+					p.leftOut = r.excluded ? exclusions::reasonName(r.leftOutWhy) : "";
 					target.points.push_back(p);
 				}
 			}
@@ -745,12 +747,16 @@ void App::recheckDialog() {
 }
 
 bool App::publishCorrected(const dataset::Info& old, const dataset::Calibration& newer, std::string& dir, std::string& error) {
-	// A new version beside the tainted one: the same cars at the newer calibration, pointing back at what it corrects.
+	// A new version beside the old one, pointing back at what it corrects: the same cars at the newer calibration (a tainted
+	// dataset; `newer` is the old calibration when only points found not to be traffic are corrected), with every point left
+	// out since publishing left out.
 	std::vector<double> after;
 	dataset::evaluate(old, newer, calib::nowIso(), &after);
 	dataset::Info d = old;
+	d.points = dataset::withoutLater(old);
 	d.dir.clear();
 	d.checks.clear();
+	d.later.clear();
 	d.version = old.version + 1;
 	d.correctionOf = old.id;
 	d.published = calib::nowIso();
@@ -783,13 +789,27 @@ bool App::publishCorrected(const dataset::Info& old, const dataset::Calibration&
 	req.configFile = (fs::path(old.dir) / "VST.cfg").string();
 	req.historyFiles = { (fs::path(old.dir) / "calibration-history.csv").string() };
 	req.passes = a.passes;   // the user's own drives stay marked in the correction (its sets and inputs are the new calibration's)
+	// Passes left out: the old dataset's own, plus those left out since it was published, so the correction's report and
+	// review leave them out too.
+	req.exclusions = a.exclusions;
+	for (const dataset::Point& p : d.points)
+		if (!p.leftOut.empty() && !req.exclusions.excluded(p.run, p.frame)) {
+			exclusions::Mark m;
+			m.run = p.run;
+			m.frame = p.frame;
+			m.reason = exclusions::reasonFrom(p.leftOut);
+			m.passed = p.passed;
+			m.speed = p.speed;
+			m.l2r = p.l2r;
+			exclusions::exclude(req.exclusions, m, d.published);
+		}
 	std::error_code ec;
 	for (fs::directory_iterator it(fs::path(old.dir) / "Stats", ec), end; !ec && it != end; it.increment(ec))
 		if (it->path().extension() == ".csv") req.statsCsvs.push_back(it->path().string());
 	for (size_t i = 0; i < a.vehicles.size(); i++) {
 		archive::Source s;
 		s.row = a.vehicles[i];
-		if (i < d.points.size()) s.row.speed = d.points[i].speed;
+		if (i < d.points.size()) { s.row.speed = d.points[i].speed; s.row.leftOut = d.points[i].leftOut; }
 		if (!a.vehicles[i].snapshot.empty()) {
 			// Read through a stream rather than imread, which can't open non-ASCII paths on Windows.
 			std::ifstream in(fs::path(old.dir) / fs::path(a.vehicles[i].snapshot), std::ios::binary);
@@ -833,6 +853,14 @@ void App::datasetCover(float width) {
 	ImGui::PushFont(fonts.strong);
 	ImGui::TextUnformatted(dataset::sentence(d).c_str());
 	ImGui::PopFont();
+	// Cars found not to be traffic since publishing: what the headline numbers would be without them.
+	const std::vector<int> since = dataset::leftOutSince(d);
+	if (!since.empty()) {
+		dataset::Summary w = dataset::summarize(dataset::withoutLater(d), d.speedLimit, d.wayOver);
+		dimText("Without %s: %d cars, %d over the limit, 85th percentile %d mph (published: %d, %d and %d mph). "
+			"Their rows in Results say why each was left out.", since.size() == 1 ? "it" : "them", w.cars, w.over, w.p85,
+			d.summary.cars, d.summary.over, d.summary.p85);
+	}
 	// Layer 2: how we know.
 	if (ImGui::TreeNode("How we know")) {
 		dimText("The camera times each car between two lines a known distance apart on the street. That distance was set by calibration "
@@ -888,10 +916,21 @@ void App::datasetCover(float width) {
 		ImGui::SameLine();
 	}
 	else if (!sameView) { dimText("Measured from another camera view than today's, so only a calibration made from that view can re-check it."); }
-	if (v == dataset::Verdict::Tainted && !d.checks.empty()) {
+	// A copy already published to correct this one is named, so nobody publishes a second by mistake.  Looked up once per
+	// dataset opened (it reads every published folder).
+	static std::string correctedFor, correctedBy;
+	if (correctedFor != d.dir) {
+		correctedFor = d.dir;
+		correctedBy.clear();
+		for (const dataset::Info& o : dataset::list(dataDir())) if (o.correctionOf == d.id) correctedBy = o.name;
+	}
+	if (!correctedBy.empty()) { ImGui::PushTextWrapPos(0); dimText(ICON_CERTIFICATE "  Corrected by \"%s\" (Open > Published).", correctedBy.c_str()); ImGui::PopTextWrapPos(); }
+	// A corrected copy: at the newer calibration when tainted, and without the cars found not to be traffic either way.
+	const bool tainted = v == dataset::Verdict::Tainted && !d.checks.empty();
+	if (tainted || !since.empty()) {
 		if (primaryButton(ICON_PUBLISH "  Publish a corrected copy")) {
 			std::string dir, err;
-			if (publishCorrected(d, d.checks.back().cal, dir, err)) {
+			if (publishCorrected(d, tainted ? d.checks.back().cal : d.cal, dir, err)) {
 				toast("Published a corrected copy beside the original, which stays as it was.", c::ok, ICON_CERTIFICATE);
 				openArchive(dir);
 				endCard();
@@ -899,7 +938,10 @@ void App::datasetCover(float width) {
 			}
 			toast(err, c::bad, ICON_WARN);
 		}
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("A new version with every speed at the newer calibration. It names the dataset it corrects;\nthe original is kept, marked tainted.");
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("%s", tainted ? "A new version with every speed at the newer calibration, and without any car found not to be traffic.\n"
+				"It names the dataset it corrects; the original is kept, marked tainted."
+				: "A new version without the cars found not to be traffic since this was published.\nIt names the dataset it corrects; the original is kept as it was.");
 	}
 	endCard();
 }

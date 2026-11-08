@@ -103,7 +103,16 @@ json trendJson(const vst::SpeedTrend& t) {
 		{ "accel", std::round(t.accelMphPerSec * 10) / 10 }, { "in20ft", int(t.projectedMph + 0.5) } };
 }
 
-json vehicleJson(const Vehicle& v) {
+// A pass's review by hand (Exclusions.h): {"reason", "label"} while it is left out, else null.
+json leftOutJson(bool out, exclusions::Reason why) {
+	if (!out) return nullptr;
+	return json{ { "reason", exclusions::reasonName(why) }, { "label", exclusions::reasonLabel(why) } };
+}
+
+// `app` answers whether the pass is left out (its own thread-safe copy); a pass not yet in a csv never is.
+json vehicleJson(const Vehicle& v, const App& app) {
+	exclusions::Reason why = exclusions::Reason::NotVehicle;
+	bool out = !v.statsPath.empty() && app.leftOutAnyThread(fs::path(v.statsPath).filename().string(), v.ev.frame, &why);
 	return json{
 		{ "id", v.id }, { "time", v.live || v.recorded.empty() ? v.time : v.recorded }, { "video", v.video }, { "frame", v.ev.frame },
 		{ "dir", v.ev.leftToRight ? "L2R" : "R2L" }, { "compass", v.ev.compass }, { "wrongWay", v.ev.wrongWay },
@@ -114,6 +123,7 @@ json vehicleJson(const Vehicle& v) {
 		{ "clip", v.clipPath.empty() ? json(nullptr) : json("/api/vehicles/" + std::to_string(v.id) + "/clip.mp4") },
 		{ "belowMin", v.belowMin },
 		{ "trend", trendJson(v.ev.trend) },
+		{ "leftOut", leftOutJson(out, why) },
 	};
 }
 
@@ -231,6 +241,7 @@ bool savedPasses(App& app, const std::string& onlyRun, int onlySet, const std::s
 			{ "measured", row.measured.speed },
 			{ "adjusted", row.adjusted },
 			{ "calibration", row.calKind == 1 ? json("drive") : row.calKind == 2 ? json("check") : json(nullptr) },
+			{ "leftOut", leftOutJson(row.excluded, row.leftOutWhy) },
 		});
 	}
 	return true;
@@ -762,15 +773,66 @@ void Server::routes() {
 			return;
 		}
 		if (req.has_param("scope") && req.get_param_value("scope") != "session") { sendJson(res, { { "error", "scope must be session or saved" } }, 400); return; }
+		// The data folder's reviewed passes, read once, so `leftOut` is right for this session's passes from the start.
+		app.post([&app] { app.exclusionsFor((fs::path(app.dataDir()) / "Stats" / "x.csv").string()); return std::string("1"); });
 		auto vs = passes ? app.tracker.passesSince(since) : app.tracker.vehiclesSince(since);
 		json out = json::array();
 		// Newest first; ISO local timestamps compare correctly as strings.
 		for (auto it = vs.rbegin(); it != vs.rend() && out.size() < limit; ++it) {
 			if (!from.empty() && it->time < from) continue;
 			if (!to.empty() && it->time > to) continue;
-			out.push_back(vehicleJson(*it));
+			out.push_back(vehicleJson(*it, app));
 		}
 		sendJson(res, out);
+	}));
+
+	// Review one pass by hand (Exclusions.h, App::reviewPass): {"id": <session id>} or {"run": "<csv>", "frame": <n>}, plus
+	// "action": "leave-out" | "put-back" | "delete" and, for leave-out, "reason": "not-vehicle" | "twice" | "bad-reading" | "merged".
+	// 200 {ok, problems, message, leftOut, deleted, published} either way, like the calibration calls; 400 for a body
+	// that names no pass or no action.
+	http_->Post("/api/vehicles/review", guard([&app, sendJson, sendPosted, parseBody](const Request& req, Response& res) {
+		json in;
+		if (!parseBody(req, in)) { sendJson(res, { { "error", "body must be a JSON object" } }, 400); return; }
+		std::string action = in.value("action", "");
+		if (action != "leave-out" && action != "put-back" && action != "delete") {
+			sendJson(res, { { "error", "action must be leave-out, put-back or delete" } }, 400);
+			return;
+		}
+		if (!in.contains("id") && !(in.contains("run") && in.contains("frame"))) {
+			sendJson(res, { { "error", "name the pass: id, or run and frame" } }, 400);
+			return;
+		}
+		sendPosted(res, app.post([&app, in, action] {
+			std::string path, err;
+			int frame = 0;
+			if (in.contains("id") && in["id"].is_number_integer()) {
+				Vehicle v;
+				if (!app.tracker.vehicle(in["id"].get<int>(), v) || v.belowMin) err = "no logged pass with that id this session";
+				else if (v.statsPath.empty()) err = "that pass isn't in a results file yet";
+				else { path = v.statsPath; frame = v.ev.frame; }
+			}
+			else if (in.contains("run") && in["run"].is_string() && in.contains("frame") && in["frame"].is_number_integer()) {
+				path = app.statsPathForRun(in["run"].get<std::string>());
+				frame = in["frame"].get<int>();
+				if (path.empty()) err = "no saved run by that name";
+			}
+			else err = "id must be a number, run a file name and frame a number";
+			App::ReviewResult r;
+			if (err.empty()) {
+				App::ReviewAction what = action == "leave-out" ? App::ReviewAction::LeaveOut : action == "put-back" ? App::ReviewAction::PutBack
+					: App::ReviewAction::Delete;
+				exclusions::Reason why = exclusions::reasonFrom(in.value("reason", "not-vehicle"));
+				if (what == App::ReviewAction::PutBack)
+					if (const exclusions::Mark* m = app.exclusionsFor(path).find(fs::path(path).filename().string(), frame)) why = m->reason;
+				r = app.reviewPass(path, frame, what, why);
+				if (!r.ok) err = r.message;
+			}
+			bool out = err.empty() && action == "leave-out";
+			return json{ { "ok", err.empty() }, { "problems", err.empty() ? json::array() : json::array({ err }) },
+				{ "message", err.empty() ? r.message : err },
+				{ "leftOut", out ? leftOutJson(true, exclusions::reasonFrom(in.value("reason", "not-vehicle"))) : json(nullptr) },
+				{ "deleted", err.empty() && action == "delete" }, { "published", r.published } }.dump();
+		}));
 	}));
 
 	http_->Get("/api/sets", guard([&app, sendPosted](const Request&, Response& res) {
@@ -780,7 +842,7 @@ void Server::routes() {
 	http_->Get(R"(/api/vehicles/(\d+))", guard([&app, sendJson](const Request& req, Response& res) {
 		Vehicle v;
 		if (!app.tracker.vehicle(std::atoi(req.matches[1].str().c_str()), v)) { sendJson(res, { { "error", "no such vehicle" } }, 404); return; }
-		sendJson(res, vehicleJson(v));
+		sendJson(res, vehicleJson(v, app));
 	}));
 
 	http_->Get(R"(/api/vehicles/(\d+)/snapshot\.jpg)", guard([&app, sendJson](const Request& req, Response& res) {
@@ -884,12 +946,12 @@ void Server::routes() {
 			}
 			for (const Vehicle& v : app.tracker.vehiclesSince(state->lastVehicle)) {
 				state->lastVehicle = v.id;
-				if (!send("vehicle", vehicleJson(v))) return false;
+				if (!send("vehicle", vehicleJson(v, app))) return false;
 			}
 			// A pass timed under minLoggedSpeed: not a logged vehicle, but a calibration drive at 10 or 15 mph is one.
 			for (const Vehicle& v : app.tracker.passesSince(state->lastPass)) {
 				state->lastPass = v.id;
-				if (v.belowMin && !send("pass", vehicleJson(v))) return false;
+				if (v.belowMin && !send("pass", vehicleJson(v, app))) return false;
 			}
 			Tracker::Live live;
 			if (app.tracker.running() && app.tracker.latest(live, false)) {

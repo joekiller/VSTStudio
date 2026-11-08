@@ -64,7 +64,8 @@ export async function render({ vst, view }) {
       return;
     }
     const own = vs.filter((v) => v.calibration).length;
-    const street = vs.filter((v) => !v.calibration);
+    const out = vs.filter((v) => v.leftOut && !v.calibration).length;
+    const street = vs.filter((v) => !v.calibration && !v.leftOut);
     const sets = new Set(street.map((v) => v.set).filter((x) => x != null));
     const retimed = street.filter((v) => v.adjusted).length;
     const parts = [];
@@ -72,6 +73,7 @@ export async function render({ vst, view }) {
     if (sets.size > 1) parts.push(`From ${sets.size} calibration sets, each shown at its own calibration.`);
     if (retimed) parts.push(`${retimed.toLocaleString()} ${retimed === 1 ? 'pass was' : 'passes were'} re-timed to their calibration set's calibration.`);
     if (own) parts.push(`Your own ${own === 1 ? 'calibration drive is' : `${own} calibration drives are`} left out.`);
+    if (out) parts.push(`${out.toLocaleString()} ${out === 1 ? 'pass you marked as not traffic is' : 'passes you marked as not traffic are'} left out.`);
     note = parts.join(' ');
     paint(summarize(street, st.speedLimit, st.egregious, st.legalDirection !== 'both'));
   };

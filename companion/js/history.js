@@ -65,7 +65,7 @@ export function passes(vst, params = {}) {
  * open set on today's view (Studio files it there when the run's manifest is read).
  */
 export function asSaved(v) {
-  return { ...v, run: null, set: currentSet()?.id ?? null, measured: v.speed, adjusted: false, calibration: null };
+  return { ...v, run: null, set: currentSet()?.id ?? null, measured: v.speed, adjusted: false, calibration: null, leftOut: v.leftOut ?? null };
 }
 
 /**

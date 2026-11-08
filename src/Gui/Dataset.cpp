@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <sstream>
 
 namespace fs = std::filesystem;
@@ -73,7 +74,7 @@ std::string shortDay(const std::string& iso) {
 	if (m < 1 || m > 12) return iso;
 	return std::string(months[m - 1]) + " " + std::to_string(d) + ", " + iso.substr(0, 4);
 }
-bool traffic(const Point& p) { return !p.ownDrive && !p.flagged; }
+bool traffic(const Point& p) { return !p.ownDrive && !p.flagged && p.leftOut.empty(); }
 
 json calJson(const Calibration& c) {
 	return { { "zoneFt", { { "L2R", std::round(c.zoneFt[0] * 1000) / 1000 }, { "R2L", std::round(c.zoneFt[1] * 1000) / 1000 } } },
@@ -142,7 +143,8 @@ json infoJson(const Info& in) {
 		{ "pointCount", in.points.size() } };
 }
 
-const char* kPointsHeader = "n,passed,direction,compass,wrongWay,zoneSeconds,speedMph,trend,entryMph,exitMph,accelMphPerSec,mphIn20ft,lengthFt,flagged,ownDrive,run,frame";
+// New columns go at the end (readers find columns by name, and spreadsheets keep their letters).
+const char* kPointsHeader = "n,passed,direction,compass,wrongWay,zoneSeconds,speedMph,trend,entryMph,exitMph,accelMphPerSec,mphIn20ft,lengthFt,flagged,ownDrive,run,frame,leftOut";
 }  // namespace
 
 const char* verdictName(Verdict v) {
@@ -211,15 +213,25 @@ std::string pointsCsv(const Info& in) {
 			+ (p.zoneSeconds > 0 ? fixed(p.zoneSeconds, 4) : "") + "," + std::to_string(p.speed) + "," + cell(p.trend) + ","
 			+ (p.trend.empty() ? ",,," : std::to_string(p.entryMph) + "," + std::to_string(p.exitMph) + "," + fixed(p.accel, 1) + "," + std::to_string(p.mphIn20ft)) + ","
 			+ (p.lengthFt > 0 ? fixed(p.lengthFt, 1) : "") + "," + (p.flagged ? "1" : "0") + "," + std::to_string(p.ownDrive) + "," + cell(p.run) + ","
-			+ std::to_string(p.frame) + "\n";
+			+ std::to_string(p.frame) + "," + cell(p.leftOut) + "\n";
 	}
+	return out;
+}
+
+static json laterJson(const std::vector<Later>& later) {
+	json out = json::array();
+	for (const Later& l : later)
+		out.push_back({ { "when", l.when }, { "n", l.n }, { "run", l.run }, { "frame", l.frame }, { "reason", l.reason },
+			{ "state", l.leftOut ? "excluded" : "restored" } });
 	return out;
 }
 
 std::string statusJson(const Info& in) {
 	json checks = json::array();
 	for (const Check& c : in.checks) checks.push_back(checkJson(c));
-	return json({ { "schema", in.schema }, { "id", in.id }, { "status", verdictName(in.status()) }, { "checks", checks } }).dump(1, '\t') + "\n";
+	json j = { { "schema", in.schema }, { "id", in.id }, { "status", verdictName(in.status()) }, { "checks", checks } };
+	if (!in.later.empty()) j["exclusions"] = laterJson(in.later);
+	return j.dump(1, '\t') + "\n";
 }
 
 std::string coverJson(const Info& in) {
@@ -231,6 +243,13 @@ std::string coverJson(const Info& in) {
 	j["statusLabel"] = verdictLabel(in.status());
 	j["sentence"] = sentence(in);
 	j["accuracy"] = accuracyWords(in.cal, in.speedLimit);
+	// Points found not to be traffic since publishing: the numbers still count them, so the cover shows what they'd be
+	// without them.
+	std::vector<int> since = leftOutSince(in);
+	if (!since.empty()) {
+		j["leftOutSince"] = since;
+		j["summaryWithout"] = summaryJson(summarize(withoutLater(in), in.speedLimit, in.wayOver));
+	}
 	return j.dump();
 }
 
@@ -316,6 +335,7 @@ bool read(const std::string& dirIn, Info& out, std::string& error) {
 		p.lengthFt = num(at(f, "lengthFt"), 0);
 		p.flagged = at(f, "flagged") == "1";
 		p.ownDrive = int(num(at(f, "ownDrive"), 0));
+		p.leftOut = at(f, "leftOut");
 		p.run = at(f, "run");
 		p.frame = int(num(at(f, "frame"), 0));
 		out.points.push_back(p);
@@ -325,6 +345,21 @@ bool read(const std::string& dirIn, Info& out, std::string& error) {
 		json s = json::parse(st, nullptr, false);
 		if (s.is_object() && s.contains("checks") && s["checks"].is_array())
 			for (const json& c : s["checks"]) if (c.is_object()) { try { out.checks.push_back(checkFrom(c)); } catch (const json::exception&) {} }
+		if (s.is_object() && s.contains("exclusions") && s["exclusions"].is_array())
+			for (const json& e : s["exclusions"]) {
+				if (!e.is_object()) continue;
+				try {
+					Later l;
+					l.when = e.value("when", std::string());
+					l.n = e.value("n", 0);
+					l.run = e.value("run", std::string());
+					l.frame = e.value("frame", 0);
+					l.reason = e.value("reason", std::string("not-vehicle"));
+					l.leftOut = e.value("state", std::string("excluded")) != "restored";
+					out.later.push_back(l);
+				}
+				catch (const json::exception&) {}
+			}
 	}
 	return true;
 }
@@ -420,6 +455,57 @@ bool check(Info& in, const Calibration& newer, const std::string& now, Check& ou
 	return true;
 }
 
+std::vector<int> leftOutSince(const Info& in) {
+	std::map<int, bool> state;   // n -> left out, the latest record of each point
+	for (const Later& l : in.later) state[l.n] = l.leftOut;
+	std::vector<int> out;
+	for (const auto& kv : state) if (kv.second) out.push_back(kv.first);
+	return out;
+}
+
+std::vector<Point> withoutLater(const Info& in) {
+	std::map<int, std::string> why;
+	for (const Later& l : in.later) { if (l.leftOut) why[l.n] = l.reason; else why.erase(l.n); }
+	std::vector<Point> pts = in.points;
+	for (Point& p : pts) {
+		auto it = why.find(p.n);
+		if (it != why.end() && p.leftOut.empty()) p.leftOut = it->second.empty() ? "not-vehicle" : it->second;
+	}
+	return pts;
+}
+
+bool recordLater(Info& in, const std::string& run, int frame, const std::string& reason, bool leftOut, const std::string& now,
+	std::string& error) {
+	error.clear();
+	const Point* hit = nullptr;
+	for (const Point& p : in.points) if (p.frame == frame && p.run == run) { hit = &p; break; }
+	if (!hit || !hit->leftOut.empty()) return false;   // not in this dataset, or already left out when it was published
+	std::vector<int> since = leftOutSince(in);
+	bool now_ = std::find(since.begin(), since.end(), hit->n) != since.end();
+	if (now_ == leftOut) return false;   // nothing changes
+	Later l;
+	l.when = now;
+	l.n = hit->n;
+	l.run = run;
+	l.frame = frame;
+	l.reason = reason;
+	l.leftOut = leftOut;
+	in.later.push_back(l);
+	fs::path dir(in.dir), tmp = dir / "status.json.tmp";
+	std::error_code ec;
+	if (!writeText(tmp, statusJson(in))) { in.later.pop_back(); error = "Couldn't write status.json in " + dir.string(); return false; }
+	fs::rename(tmp, dir / "status.json", ec);
+	if (ec) { in.later.pop_back(); error = "Couldn't write status.json: " + ec.message(); return false; }
+	// review.html carries the cover; it isn't in SHA256SUMS, so redrawing it leaves the checksums valid.
+	archive::Info a;
+	std::string err;
+	if (archive::read(in.dir, a, err)) {
+		a.dataset = coverJson(in);
+		writeText(dir / "review.html", archive::reviewHtml(a));
+	}
+	return true;
+}
+
 std::string accuracyWords(const Calibration& c, int limit) {
 	double band = std::max(c.band(0), c.band(1));
 	double mph = band * limit;
@@ -428,7 +514,19 @@ std::string accuracyWords(const Calibration& c, int limit) {
 	return "within \xC2\xB1" + fixed(mph, mph < 9.95 ? 1 : 0) + " mph at " + std::to_string(limit) + " mph (\xC2\xB1" + pct + "%)";
 }
 
+static std::string sentenceOfChecks(const Info& in);
+
 std::string sentence(const Info& in) {
+	std::string s = sentenceOfChecks(in);
+	size_t n = leftOutSince(in).size();
+	if (n)
+		s += " Since publishing, " + (n == 1 ? std::string("1 of its cars was") : std::to_string(n) + " of its cars were")
+			+ " found not to be traffic (not a vehicle, counted twice or a bad reading). These numbers still count "
+			+ (n == 1 ? "it" : "them") + "; a corrected copy leaves " + (n == 1 ? "it" : "them") + " out.";
+	return s;
+}
+
+static std::string sentenceOfChecks(const Info& in) {
 	std::string promise = "\xC2\xB1" + fixed(std::max(in.cal.band(0), in.cal.band(1)) * 100, 1) + "%";
 	if (in.checks.empty())
 		return "Published " + shortDay(in.published) + (in.correctionOf.empty() ? std::string() : " to correct an earlier copy")

@@ -24,6 +24,8 @@ import * as ground from './ground.js';
 const SNAPSHOTS = 6;
 const DIRS = ['L2R', 'R2L'];
 const DAY = 86400e3;
+/** Why a pass was left out, as VST Studio stores and labels it (src/Gui/Exclusions.h). */
+const REASONS = { 'not-vehicle': 'Not a vehicle', twice: 'Counted twice', 'bad-reading': 'Bad reading', merged: 'Person merged with a car' };
 
 /** Small deterministic PRNG (mulberry32) so the demo looks the same on every load. */
 function rng(seed) {
@@ -291,6 +293,7 @@ export function createDemoVst({ now = () => Date.now(), tracks = true } = {}) {
       clip: withClip ? `/api/vehicles/${id}/clip.mp4` : null,
       belowMin: false,   // the demo's passes are all at or over minLoggedSpeed
       trend: makeTrend(speed),
+      leftOut: null,   // { reason, label } once reviewed and left out (POST /api/vehicles/review)
     };
   }
 
@@ -357,6 +360,13 @@ export function createDemoVst({ now = () => Date.now(), tracks = true } = {}) {
   const calDriveAt = started - 1.5 * DAY;
   const calDrive = vehicles.reduce((best, v) => (Math.abs(Date.parse(v.time) - calDriveAt) < Math.abs(Date.parse(best.time) - calDriveAt) ? v : best), vehicles[0]);
   Object.assign(calDrive, { dir: 'R2L', compass: config.R2LDirection, wrongWay: false, speed: 20, speeding: false, egregious: false, trend: { kind: 'steady', entry: 20, exit: 20, accel: 0.2, in20ft: 20 } });
+
+  // A pass already reviewed and left out (Joe's case, 2026-11-07): someone on the near sidewalk timed together with a car
+  // coming the other way, read as a fast wrong-way driver.  Two days ago, so it is in set 2's saved runs.
+  const mergedAt = started - 2 * DAY;
+  const merged = vehicles.reduce((best, v) => (v !== calDrive && Math.abs(Date.parse(v.time) - mergedAt) < Math.abs(Date.parse(best.time) - mergedAt) ? v : best), vehicles[1]);
+  Object.assign(merged, { dir: 'L2R', compass: config.L2RDirection, wrongWay: config.legalDirection === 'R2L', speed: 52, speeding: true, egregious: true,
+    trend: null, leftOut: { reason: 'merged', label: REASONS.merged } });
 
   const inSession = (v) => Date.parse(v.time) >= sessionStart;
   /** One pass as a saved csv row reads back: the session's id, snapshot and clip only while it is in this session. */
@@ -517,6 +527,35 @@ export function createDemoVst({ now = () => Date.now(), tracks = true } = {}) {
     return { ok: true, problems: [], config: configJson() };
   }
 
+  /**
+   * POST /api/vehicles/review, as VST Studio's App::reviewPass: leave a pass out (a mark that can be undone), put it back,
+   * or delete it for good.  The demo's set 1 is published, so a pass in it can't be deleted.
+   */
+  function review(b) {
+    const action = b?.action;
+    if (!['leave-out', 'put-back', 'delete'].includes(action)) return err(400, 'action must be leave-out, put-back or delete');
+    if (b.id == null && (b.run == null || b.frame == null)) return err(400, 'name the pass: id, or run and frame');
+    const v = b.id != null ? vehicles.find((x) => x.id === b.id && inSession(x))
+      : vehicles.find((x) => runOf(Date.parse(x.time)).csv === b.run && x.frame === b.frame);
+    const no = (why) => ok({ ok: false, problems: [why], message: why, leftOut: null, deleted: false, published: [] });
+    if (!v) return no(b.id != null ? 'no logged pass with that id this session' : 'no saved run by that name');
+    if (v === calDrive) return no('This is your own calibration drive, which is already left out of the street\'s numbers.');
+    const published = runOf(Date.parse(v.time)).set === 1 ? ['Week one, before the signs'] : [];
+    if (action === 'delete') {
+      if (published.length) return no('It\'s in your published dataset "Week one, before the signs", which has to stay as it was published. Leave it out instead: the dataset will say so, and can be corrected.');
+      vehicles.splice(vehicles.indexOf(v), 1);
+      return ok({ ok: true, problems: [], message: 'Deleted for good. The record in exclusions.json keeps one line saying a pass was deleted, and why.', leftOut: null, deleted: true, published: [] });
+    }
+    if (action === 'put-back') {
+      if (!v.leftOut) return no('That pass isn\'t left out.');
+      v.leftOut = null;
+      return ok({ ok: true, problems: [], message: 'Put back: it counts again.', leftOut: null, deleted: false, published });
+    }
+    const reason = REASONS[b.reason] ? b.reason : 'not-vehicle';
+    v.leftOut = { reason, label: REASONS[reason] };
+    return ok({ ok: true, problems: [], message: `Left out as "${REASONS[reason]}". It stays in the list, greyed; put it back any time.`, leftOut: v.leftOut, deleted: false, published });
+  }
+
   const ok = (json) => ({ status: 200, json });
   const err = (status, error) => ({ status, json: { error } });
 
@@ -571,6 +610,7 @@ export function createDemoVst({ now = () => Date.now(), tracks = true } = {}) {
         return ok(out);
       }
       case 'GET /api/sets': return ok(sets);
+      case 'POST /api/vehicles/review': return review(body);
       case 'POST /api/run': {
         const a = body?.action;
         if (a === 'start') Object.assign(state, { running: true, paused: false });

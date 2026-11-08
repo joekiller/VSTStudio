@@ -389,6 +389,34 @@ done
 
 [ "$(cksum < "$OUT/VST.cfg")" = "$SUM_BEFORE" ] && pass "VST.cfg still byte-identical after the run" || fail "VST.cfg changed during the run"
 
+# Reviewing a pass by hand (POST /api/vehicles/review, src/Gui/Exclusions.h).  A saved run of the user's own: a copy of
+# the sample's csv put in Stats/ (after the check above that the sample never leaks there), so scope=saved has passes.
+echo "Reviewing a pass by hand"
+STATS=$OUT/data/vststudio/Stats
+SAMPLE_CSV=$(ls "$OUT"/data/vststudio/Sample/Stats/stats_*.csv 2>/dev/null | head -1)
+if [ -n "$SAMPLE_CSV" ]; then
+  mkdir -p "$STATS"
+  RUN=stats_review_20260101_000000.csv
+  cp "$SAMPLE_CSV" "$STATS/$RUN"
+  ROWS_BEFORE=$(grep -c '' "$STATS/$RUN")
+  FRAME=$(sed -n 2p "$STATS/$RUN" | cut -d, -f3 | tr -d ' ')
+  req POST /api/vehicles/review -H 'Content-Type: application/json' -d "{\"run\":\"$RUN\",\"frame\":$FRAME,\"action\":\"leave-out\",\"reason\":\"merged\"}"
+  grep -q '"ok":true' <<< "$BODY" && pass "leave-out frame $FRAME" || fail "leave-out: ${BODY:0:300}"
+  grep -q '"state": "excluded"' "$STATS/exclusions.json" 2>/dev/null && pass "Stats/exclusions.json records it" || fail "exclusions.json: $(cat "$STATS/exclusions.json" 2>&1)"
+  [ "$(grep -c '' "$STATS/$RUN")" = "$ROWS_BEFORE" ] && pass "leaving out keeps the csv row" || fail "the csv changed on leave-out"
+  req GET "/api/vehicles?scope=saved&run=$RUN&limit=20000"
+  grep -q '"leftOut":{"label":"Person merged with a car","reason":"merged"}' <<< "$BODY" && pass "scope=saved says it is left out" || fail "saved list: ${BODY:0:300}"
+  req POST /api/vehicles/review -H 'Content-Type: application/json' -d "{\"run\":\"../VST.cfg\",\"frame\":1,\"action\":\"delete\"}"
+  grep -q '"ok":false' <<< "$BODY" && pass "a path is refused as a run" || fail "path as run: ${BODY:0:300}"
+  req POST /api/vehicles/review -H 'Content-Type: application/json' -d "{\"run\":\"$RUN\",\"frame\":$FRAME,\"action\":\"delete\"}"
+  grep -q '"deleted":true' <<< "$BODY" && pass "delete for good" || fail "delete: ${BODY:0:300}"
+  [ "$(grep -c '' "$STATS/$RUN")" = "$((ROWS_BEFORE - 1))" ] && pass "its csv row is gone, the rest kept" || fail "rows after delete: $(grep -c '' "$STATS/$RUN") (was $ROWS_BEFORE)"
+  grep -q '"state": "deleted"' "$STATS/exclusions.json" && pass "the record keeps that it was deleted" || fail "exclusions.json after delete: $(cat "$STATS/exclusions.json")"
+  grep -q "^[^,]*,[^,]*, *$FRAME," "$STATS/$RUN" && fail "frame $FRAME is still in the csv" || pass "frame $FRAME is out of the csv"
+else
+  fail "no sample csv to review a pass in"
+fi
+
 # Last, now that the byte-identical checks are done: the contract tests that change things (a valid PUT, which
 # must be announced on /api/live, and pause/resume), which they undo again.
 if [ -n "${NODE_OK:-}" ]; then

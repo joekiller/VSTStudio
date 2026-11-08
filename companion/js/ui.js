@@ -54,6 +54,8 @@ const ICONS = {
   trendUp: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   trendDown: '<path d="m3 7 6 6 4-4 8 8"/><path d="M15 17h6v-6"/>',
   flat: '<path d="M4 12h16"/>',
+  'eye-off': '<path d="M3 3l18 18"/><path d="M10.6 6.1A10 10 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-2.6 3.2M6.6 6.6C4.3 8.1 3 12 3 12s4 6 9 6a9 9 0 0 0 4.4-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  trash: '<path d="M4 7h16M10 7V4h4v3M6 7l1 14h10l1-14"/>',
 };
 export const icon = (name) => raw(`<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`);
 
@@ -75,6 +77,8 @@ export const sign = (speed, cls = 'ok', label = 'MPH', size = '') =>
 
 /** Pills that explain a pass in words, so status is never colour alone. */
 export function passPills(v, limit) {
+  // A pass reviewed and left out (POST /api/vehicles/review) isn't a speeder or a wrong-way driver: one grey pill says why.
+  if (v.leftOut) return [html`<span class="pill" title="You left this out of the numbers">${icon('eye-off')}Left out · ${v.leftOut.label || 'not traffic'}</span>`];
   const p = [];
   if (v.wrongWay) p.push(html`<span class="wrongway">WRONG WAY</span>`);
   if (v.egregious) p.push(html`<span class="pill bad">Way too fast</span>`);

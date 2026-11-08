@@ -427,6 +427,18 @@ int Tracker::forgetRun(const std::string& statsPath) {
 	return gone;
 }
 
+std::string Tracker::forgetPass(const std::string& statsPath, int frame) {
+	std::lock_guard<std::mutex> l(mu_);
+	std::string clip;
+	for (auto it = vehicles_.begin(); it != vehicles_.end(); ++it)
+		if (it->statsPath == statsPath && it->ev.frame == frame) {
+			clip = it->clipPath;
+			vehicles_.erase(it);
+			break;
+		}
+	return clip;
+}
+
 std::string Tracker::runningStatsPath() {
 	std::lock_guard<std::mutex> l(mu_);
 	return running_ ? lastStats_ : std::string();
