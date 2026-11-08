@@ -332,6 +332,17 @@ if(TARGET vst_report)
   if(MSVC)
     target_compile_options(legacy_test PRIVATE /utf-8)
   endif()
+  # Updating from GitHub Releases (src/Gui/Update.h): versions, reading /releases/latest and SHA256SUMS, when to check
+  # and ask, and on each platform that the OS calls work on an unsigned build (it can't install, and says why).
+  if(TARGET vst_update)
+    add_executable(update_test tests/update_test.cpp)
+    target_link_libraries(update_test PRIVATE vst_update)
+    if(MSVC)
+      target_compile_options(update_test PRIVATE /utf-8)
+    endif()
+    add_test(NAME app_updates COMMAND update_test ${CMAKE_SOURCE_DIR}/tests ${CMAKE_BINARY_DIR}/update-test)
+  endif()
+
   add_test(NAME legacy_2016_setup
     COMMAND legacy_test ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/legacy-test $<TARGET_FILE:VideoSpeedTracker>)
 endif()
@@ -434,7 +445,7 @@ endif()
 if(VST_WERROR AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   foreach(t VideoSpeedTracker ProcessHiLites vst_common vst_webcam webcam_test vst_engine vst_report VSTStudio level_test frame_input_test
       perspective_test speed_trend_test report_test health_test plan_test resume_test dashcam_test calibration_test engine_reconnect_test
-      legacy_test)
+      legacy_test vst_update update_test)
     if(TARGET ${t})
       target_compile_options(${t} PRIVATE -Werror)
     endif()

@@ -109,6 +109,11 @@ struct AppPrefs {
 	// The 2016 VideoSpeedTracker setup (Legacy2016.h): the Setup::key() its welcome was last answered for, the one
 	// picked up ("" = none), and that setup's data folder, read only (its recordings are opened from there).
 	std::string legacySeen, legacyImported, legacyData;
+	// Updates (Update.h): check GitHub once a day and ask when a new version is out (off: only "Check now" checks), the
+	// version the user chose to skip, and when the last automatic check ran (seconds since 1970; 0 = never).
+	bool updateAuto = true;
+	std::string updateSkip;
+	double updateChecked = 0;
 
 	void load();
 	void save() const;

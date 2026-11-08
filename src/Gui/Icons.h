@@ -84,3 +84,4 @@
 #define ICON_LOCK_OPEN      "\xef\x8f\x81"
 #define ICON_PUBLISH        "\xef\x85\x8d"
 #define ICON_CERTIFICATE    "\xef\x82\xa3"
+#define ICON_DOWNLOAD       "\xef\x80\x99"

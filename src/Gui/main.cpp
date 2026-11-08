@@ -376,6 +376,30 @@ struct DemoScript {
 			if (frames == 41) app.archiveCalOpen_ = true;
 			if (frames == 60) { shot("10c-archive-calibration.png"); next(); }
 			break;
+		case 11:
+			// The Updates dialog as a new release finds it (AppUpdate.cpp).  The tour never goes online: the updater is told
+			// what a check would have found.
+			if (frames == 1) {
+				ImGui::ClosePopupToLevel(0, true);
+				app.page = Page::Track;
+				app.updater_ = std::make_unique<Updater>("2.1.0");
+				Updater::Status st;
+				st.state = Updater::State::Available;
+				st.release.version = update::Version::parse("2.2.0");
+				st.release.published = "2026-11-08T16:59:00Z";
+				st.release.notes = "## What's Changed\n* Keep the computer awake during live runs, and never time a car across a sleep by @joekiller in "
+					"https://github.com/joekiller/VSTStudio/pull/74\n\n**Full Changelog**: https://github.com/joekiller/VSTStudio/compare/v2.1.0...v2.2.0";
+				st.release.package.name = update::packageName(update::thisPlatform(), st.release.version);
+				st.release.package.url = "https://github.com/joekiller/VSTStudio/releases/download/v2.2.0/" + st.release.package.name;
+				st.release.package.size = 98687624;
+				st.canInstall = true;
+				app.updater_->pretend(st);
+				app.openUpdate_ = true;
+			}
+			if (frames == 25) app.toasts_.clear();
+			if (frames == 30) shot("11-update-available.png");
+			if (frames == 31) { ImGui::ClosePopupToLevel(0, true); app.updater_.reset(); next(); }
+			break;
 		default:
 			done = true;
 		}
@@ -446,7 +470,7 @@ int main(int argc, char** argv) {
 		app.cfg.g.dataPathPrefix = data;
 	}
 
-	while (!glfwWindowShouldClose(window)) {
+	while (!glfwWindowShouldClose(window) && !app.quitRequested) {   // quitRequested: an update is installing
 		// Idle politely: redraw on input, or continuously while video is moving.
 		if (shots || app.wantsContinuousFrames()) glfwPollEvents();
 		else glfwWaitEventsTimeout(0.25);

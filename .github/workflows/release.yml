@@ -33,6 +33,9 @@
 #                                                Contents/Frameworks); macOS 13 or later, no Homebrew needed
 # Every platform builds OpenCV from source with packaging/build-opencv.sh (macOS also FFmpeg, build-ffmpeg.sh); the
 # install is cached per platform, so only the first run (or a change to that script) pays for the build.
+# VST Studio's updater (src/Gui/Update.h) reads the published release through the API and installs the Windows setup.exe
+# or the macOS .tar.gz by these exact names, after checking them against SHA256SUMS and their code signatures: renaming
+# a package or dropping SHA256SUMS stops updates.
 #   SHA256SUMS                                   sha256 of every package above
 #   SHA256SUMS.sigstore.json                     Sigstore bundle signing SHA256SUMS (offline verification)
 # Chain of custody (docs/install.md "Is the download genuine?"): each package gets a GitHub artifact attestation, i.e.

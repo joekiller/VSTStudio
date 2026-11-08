@@ -28,6 +28,11 @@ them, Connect the camera once a source is open, Mark your street once you've che
 nothing for the tracker to reject, and Calibrate once a calibration was applied to this `VST.cfg` (the bundled
 sample comes calibrated). A **Not calibrated** chip in the header opens step 5.
 
+The box at the bottom of the side rail shows whether a run is going, the `VST.cfg` in use, the companion, and the
+version of VST Studio. The version line turns blue when a new release is out; click it for **VST Studio updates**,
+which checks now, installs the update after you say so, and has the switch for automatic checks
+([Installing: Updates](install.md#updates)).
+
 Reopening VST Studio picks up where you left off: it opens on the page you were on and reconnects the source you
 last used, a USB or Pi camera included (in the background, so a missing camera never holds up the window). Steps 3
 and 4 keep their checks while the camera reconnects or is unplugged; the header names it ("Camera 0 · not

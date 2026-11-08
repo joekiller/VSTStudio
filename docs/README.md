@@ -9,7 +9,7 @@ New here? Start with [Getting started](getting-started.md).
 | Set up and calibrate from your phone | [Phone companion](../companion/README.md) |
 | Take your results to neighbors, city staff or council | [Working with your city](working-with-your-city.md) |
 | Fix something that isn't working | [Troubleshooting](troubleshooting.md) |
-| Choose a download, check it's genuine, find your files | [Installing](install.md) |
+| Choose a download, check it's genuine, update, find your files | [Installing](install.md) |
 | Run VST from scripts, on a headless box, or set it up by hand | [Command line](command-line.md) |
 | Look up a `VST.cfg` setting | [Configuration reference](config-reference.md) |
 | Analyze the csv and other files yourself | [Output files](output-files.md), [published datasets](dataset-schema.md), [speed trend](speed-trend.md) |

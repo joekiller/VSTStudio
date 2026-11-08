@@ -20,6 +20,41 @@ Your settings and results are kept outside the program folder, so upgrading or u
 Then open **VST Studio** (Start menu, Applications, or your Linux applications menu; `VSTStudio` from a terminal) and
 follow [Getting started](getting-started.md).
 
+## Updates
+
+VST Studio checks for a new release once a day and asks before changing anything. When one is out, the **VST Studio
+updates** window shows what's new with three choices: **Update now**, **Later** (it asks again next time you open VST
+Studio) and **Skip this version** (it waits for the one after). It never opens while a tracking run is going, and
+**Update now** is greyed out until the run is stopped, so a camera watching the street is never cut off.
+
+![VST Studio updates](images/studio/11-update-available.jpg)
+
+**Update now** downloads the new version, checks it (below), closes VST Studio, installs the new version and opens it
+again, usually in a minute or two. There's nothing else to click, except that Windows asks for permission (the UAC
+prompt) when VST Studio was installed *for everyone*. Settings, calibration, videos and results are kept outside the
+program folder and aren't touched.
+
+The bottom line of the side rail shows the version you have; click it to check now or to turn automatic checks off
+(**Check for updates automatically**). With it off, VST Studio contacts GitHub only when you press **Check now**. A
+check asks GitHub's public API for the latest release and sends nothing but VST Studio's version.
+
+Where updates install themselves, and where they don't:
+
+| Your copy | Updates |
+|---|---|
+| Windows, from the setup program | Installs itself, in the same folder, for the same users (just you, or everyone). |
+| Windows, from the zip | Tells you about the new version and opens the download page. Install with the setup program to get automatic updates. |
+| Mac, in **Applications** (or any folder you can change) | Installs itself in place. |
+| Mac, opened straight from the disk image or Downloads | Asks you to drag **VSTStudio.app** to Applications first. |
+| Linux and Raspberry Pi | Tells you about the new version; install its `.deb` as before. |
+| Built from source, or from a pull request | Doesn't check: only signed releases update. |
+
+Before anything is installed, VST Studio checks the download two ways and stops at the first that fails: its sha256
+must match both GitHub's record for that file and the release's `SHA256SUMS`, and the operating system must confirm it
+is signed by the same developer as the copy that's running (Windows: the same Authenticode publisher, through a
+trusted certificate chain; Mac: the same Apple Developer ID team and app, notarized by Apple). A file that fails is
+deleted and nothing changes. Automatic updates start with the first release after 2.2.0; a copy of 2.2.0 or older needs one last download by hand.
+
 ## Is the download genuine?
 
 Release packages are signed so you can tell they came from this project and weren't changed on the way:

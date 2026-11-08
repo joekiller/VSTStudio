@@ -186,7 +186,24 @@ jobs:
           $app = Start-Process "$dir\VSTStudio.exe" -WorkingDirectory $env:USERPROFILE -PassThru
           Start-Sleep -Seconds 5
           if ($app.HasExited -and $app.ExitCode -eq -1073741515) { throw "VSTStudio.exe is missing a DLL" }
-          if (-not $app.HasExited) { Stop-Process $app -Force }
+          # An update, the way VST Studio runs one (src/Gui/UpdateOs.cpp install()): the same setup over the install while
+          # Studio is open, silently, in the install's own mode and folder, with /relaunch=1. Setup has to close the
+          # running copy, finish, and start VST Studio again from the same folder. Studio finds the install through
+          # Inno's uninstall entry, so its InstallLocation has to be this folder.
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F1C2A57-93D8-4B0E-A7C4-5E2D9B81F340}_is1'
+          $loc = (Get-ItemProperty $key).InstallLocation
+          if ($loc.TrimEnd('\') -ne $dir) { throw "the uninstall entry's InstallLocation is $loc, not $dir" }
+          $p = Start-Process $setup.FullName -ArgumentList '/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', '/relaunch=1', '/CURRENTUSER', "`"/DIR=$dir`"", "`"/LOG=$env:RUNNER_TEMP\update.log`"" -PassThru
+          # Not -Wait: that waits for every process Setup starts too, and the VST Studio it opens again stays up.
+          $p.WaitForExit()
+          if ($p.ExitCode) { Get-Content "$env:RUNNER_TEMP\update.log"; throw "the update install exited with $($p.ExitCode)" }
+          # Setup's log records each [Run] entry it starts; the GUI it starts may or may not stay up on a runner.
+          $log = Get-Content -Raw "$env:RUNNER_TEMP\update.log"
+          if ($log -notmatch '(?s)-- Run entry --.*?Filename: [^\r\n]*VSTStudio\.exe') { $log; throw "the update didn't start VST Studio again" }
+          if (-not $app.HasExited) { throw "the update left the old VST Studio running" }
+          Start-Sleep -Seconds 3
+          Get-Process VSTStudio -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq "$dir\VSTStudio.exe" } | Stop-Process -Force
+          Start-Sleep -Seconds 1
           New-Item -ItemType Directory -Force "$env:APPDATA\VSTStudio" | Out-Null
           "kept" | Out-File "$env:APPDATA\VSTStudio\uninstall-test.txt"
           Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
