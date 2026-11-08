@@ -62,7 +62,7 @@ std::string narrow(const std::wstring& w) {
 	return s;
 }
 
-std::string lastError(const char* what) {
+std::string lastError(const std::string& what) {
 	DWORD e = GetLastError();
 	wchar_t* msg = nullptr;
 	// WinHTTP's own codes (12xxx) have their text in winhttp.dll.
@@ -73,7 +73,7 @@ std::string lastError(const char* what) {
 	std::string text = msg ? narrow(msg) : std::string();
 	if (msg) LocalFree(msg);
 	while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' ' || text.back() == '.')) text.pop_back();
-	return std::string(what) + ": " + (text.empty() ? "error " + std::to_string(e) : text);
+	return what + ": " + (text.empty() ? "error " + std::to_string(e) : text);
 }
 
 fs::path selfPath() {
