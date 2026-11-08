@@ -1,6 +1,6 @@
 # VST Studio
 
-VST Studio is the desktop app built on Paul Reynolds' 2016 VideoSpeedTracker. It runs the same tracker as the
+VST Studio is the desktop app derived from the 2016 [VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker). It runs the same tracker as the
 `VideoSpeedTracker` command line, and replaces hand-editing `VST.cfg` with a guided setup: plan the camera position, draw the zones on the
 picture, calibrate with one drive past and check it with a second, then watch vehicles get measured and review the speeders and wrong-way
 drivers. It ships in every release package next to the command-line tools (`VSTStudio`, or **VST Studio** in

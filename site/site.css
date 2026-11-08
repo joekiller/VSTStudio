@@ -214,7 +214,7 @@ h3 { font-size: 21px; line-height: 1.25; letter-spacing: -.015em; margin: 10px 0
 
 /* ---------------------------------------------------------------- split layouts + phone */
 .split { display: grid; gap: 48px; align-items: center; }
-@media (min-width: 1040px) { .split { grid-template-columns: .8fr 1.2fr; gap: 72px; } .split-rev { grid-template-columns: 1.1fr .9fr; } }
+@media (min-width: 1040px) { .split { grid-template-columns: .8fr 1.2fr; gap: 72px; } }
 .phone-wrap { display: grid; justify-items: center; gap: 16px; }
 .phone { position: relative; width: min(300px, 78vw); aspect-ratio: 541 / 1101; padding: 26px 12px 14px; border-radius: 46px;
   background: linear-gradient(145deg, #2a313c, #0d1117 40%, #1f2630); box-shadow: 0 0 0 2px #303845, 0 50px 120px -30px rgba(192, 132, 252, .45),
@@ -265,11 +265,6 @@ h3 { font-size: 21px; line-height: 1.25; letter-spacing: -.015em; margin: 10px 0
 .dl-foot { margin-top: 28px; color: var(--muted); font-size: 14px; text-align: center; }
 .dl-foot span { display: block; margin-bottom: 6px; color: var(--text-2); }
 
-/* ---------------------------------------------------------------- story */
-.quote { margin: 0; }
-.quote img { border-radius: 16px; border: 1px solid var(--line-2); box-shadow: 0 40px 100px -40px rgba(251, 191, 36, .35); }
-.quote figcaption { color: var(--muted); font-size: 14px; margin-top: 12px; text-align: center; }
-
 /* ---------------------------------------------------------------- closing + footer */
 .final { position: relative; padding: 110px 0; text-align: center; overflow: hidden; isolation: isolate; border-top: 1px solid var(--line); }
 .final-in { position: relative; z-index: 1; }
@@ -280,6 +275,8 @@ h3 { font-size: 21px; line-height: 1.25; letter-spacing: -.015em; margin: 10px 0
 .foot nav { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .foot nav a { color: var(--text-2); text-decoration: none; }
 .foot nav a:hover { color: var(--teal); }
+.foot .about { font-size: 13px; }
+.foot .about a { color: var(--text-2); }
 
 /* ---------------------------------------------------------------- reveal on scroll (site.js adds .in) */
 .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s cubic-bezier(.2, .7, .2, 1); }

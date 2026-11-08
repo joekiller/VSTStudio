@@ -1,8 +1,6 @@
 # VST Studio
 
-> VST Studio is built on [VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker), written in 2016 by
-> [Paul Reynolds](https://www.cs.virginia.edu/~pfr) to measure speeding on Locust Avenue in Charlottesville. Until
-> v2.0.0 this project was called VideoSpeedTracker too; [see below](#built-on-videospeedtracker).
+> Until v2.0.0 this project was called VideoSpeedTracker; [see below](#built-on-videospeedtracker).
 
 **Measure the traffic on your own street with a camera in your window.** VST Studio (VST) times every car that
 passes, calls out speeders and wrong-way drivers on one-way streets, and turns weeks of measurements into a report
@@ -68,11 +66,10 @@ accurate its speeds are and how the calibration was checked.
 
 ## Built on VideoSpeedTracker
 
-VideoSpeedTracker was created in 2016 by [Paul Reynolds](https://www.cs.virginia.edu/~pfr), a retired University of
-Virginia computer science professor, to measure speeding on Locust Avenue in Charlottesville, Virginia. He shared his
-data with the city and council, measured the city's own traffic-calming pilot, and published the software so any
-neighborhood could do the same. VST Studio began as a fork of his
-[pfr/VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker). It keeps his tracker and his calibration method at
+VideoSpeedTracker was written in 2016 by [Paul Reynolds](https://github.com/pfr) to measure speeding on Locust Avenue
+in Charlottesville, Virginia, and published under the BSD license. VST Studio began as a fork of his
+[pfr/VideoSpeedTracker](https://github.com/pfr/VideoSpeedTracker). It is an independent project, not affiliated with
+or endorsed by him. It keeps his tracker and his calibration method at
 its heart, still as the `VideoSpeedTracker` program, and builds on them for narrower streets, more cameras and people
 with no technical background. It was renamed VST Studio at v2.0.0; v1 releases and their downloads keep the old name.
 [Where VideoSpeedTracker came from](docs/history/README.md) tells the story, what it teaches about working with your

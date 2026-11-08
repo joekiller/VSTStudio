@@ -5,7 +5,7 @@
  * next launch. Browsers only run this on https or localhost; on a plain-http LAN the app works
  * without it.
  */
-const CACHE = 'vst-companion-v5';
+const CACHE = 'vst-companion-v6';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/api.js', 'js/demo.js', 'js/plan.js', 'js/calib.js', 'js/ui.js', 'js/prefs.js', 'js/overlay.js', 'js/share.js', 'js/touch.js', 'js/ground.js', 'js/history.js',

@@ -7,7 +7,7 @@ the project does today rests on that work.
 
 ## Paul Reynolds and Locust Avenue
 
-[Paul F. Reynolds](https://www.cs.virginia.edu/~pfr) is a retired University of Virginia computer science professor
+[Paul F. Reynolds](https://github.com/pfr) is a retired University of Virginia computer science professor
 who, in his own words, brought "40 years of experience with tracking moving objects" to the street outside his house.
 Locust Avenue runs through the Martha Jefferson neighborhood between downtown and the U.S. 250 bypass, and residents
 there saw speeding every day.
@@ -97,7 +97,8 @@ street report, before-and-after comparisons, verified calibration and published 
 Joseph Lawson's fork, first joekiller/VideoSpeedTracker and since v2.0.0 (November 2026)
 [joekiller/VSTStudio](https://github.com/joekiller/VSTStudio), began in October 2026 to bring VST to a much narrower view, a second-floor window over a one-way street in Charlottesville where wrong-way
 drivers matter as much as speeders, and to make it usable by anyone. The tracker at its heart is still Paul Reynolds'
-design, and his copyright and license notice is in every source file. VST Studio recognizes a setup made with the 2016
+design, and his copyright and license notice is in every source file. VST Studio is an independent project, not
+affiliated with or endorsed by him. It recognizes a setup made with the 2016
 program, greets its creator (the Locust Avenue setup gets "Hello, Professor."), and builds on it without changing it
 ([VST Studio](../vst-studio.md#coming-from-the-2016-videospeedtracker)). Around the tracker, the project has changed a
 great deal:
